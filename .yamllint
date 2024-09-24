@@ -30,4 +30,3 @@ rules:
     level: error
     allow-non-breakable-inline-mappings: true
   truthy: disable
-  

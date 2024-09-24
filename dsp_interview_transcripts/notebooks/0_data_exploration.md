@@ -1,9 +1,11 @@
-# Notes on transcript data
+# Notes on transcripts data
 
-Audio transcripts
-Different languages - need translating
-Typos (heating > eating)
-Removing boiler plate messages and responses
+## Considerations to keep in mind
+
+- Dealing with audio transcripts
+- Different languages sometimes used, might need translating
+- Typos (heating > eating)
+- Removing boiler plate messages and responses from the analysis
 
 
 ## Schema
