@@ -2,9 +2,9 @@
 
 Exploring methods to analyse and classify interview transcripts
 
-## Installation
+## Installation
 
-We're using poetry for dependency management 
+We're using poetry for dependency management
 
 ```
 poetry install --with lint, test
