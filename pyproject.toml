@@ -19,6 +19,9 @@ jupyter = "^1.1.1"
 python-dotenv = "^1.0.1"
 matplotlib = "^3.9.2"
 altair = "^5.4.1"
+emoji = "^2.13.2"
+ftfy = "^6.2.3"
+streamlit = "^1.39.0"
 
 
 [tool.poetry.group.test]
