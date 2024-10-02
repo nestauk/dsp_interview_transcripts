@@ -1,7 +1,7 @@
 import pandas as pd
 
 from dsp_interview_transcripts import PROJECT_DIR, logger
-from dsp_interview_transcripts.utils.data_cleaning import clean_data, convert_timestamp
+from dsp_interview_transcripts.utils.data_cleaning import clean_data, convert_timestamp, add_text_length
 
 DATA_PATH = PROJECT_DIR / "data/qual_af_transcripts.csv"
 
@@ -82,7 +82,12 @@ if __name__ == "__main__":
     interviews_df['timestamp_clean'] = interviews_df['timestamp'].apply(convert_timestamp)
     interviews_df = interviews_df.groupby('conversation', group_keys=False).apply(lambda x: x.sort_values('timestamp_clean'))
     
+    # Group together consecutive responses by the same role
+    interviews_df = concatenate_consecutive_roles(interviews_df)
+    
     interviews_df = create_q_and_a_column(interviews_df)
+    
+    interviews_df = add_text_length(interviews_df, 'text_clean')
     
     q_and_a_df = interviews_df[interviews_df['q_and_a'] != '']
     q_and_a_df.to_csv(PROJECT_DIR / "data/q_and_a.csv", index=False)
