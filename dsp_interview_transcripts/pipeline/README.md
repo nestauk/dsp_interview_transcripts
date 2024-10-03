@@ -1,4 +1,6 @@
 
+# Basic pipeline
+
 The pipeline is very simple at this stage.
 
 1. Make sure you have a directory `data/` with the file `qual_af_transcripts.csv` in it.
@@ -9,3 +11,4 @@ The pipeline is very simple at this stage.
     - `python dsp_interview_transcripts/pipeline/topic_modelling.py`. This runs BERTopic on the datasets provided above, and also iterates over a few different minimum cluster sizes.
 
 3. Run `streamlit run dsp_interview_transcripts/pipeline/app.py`. This launches a streamlit app that allows you to inspect the outputs of BERTopic that we created in the step above.
+
