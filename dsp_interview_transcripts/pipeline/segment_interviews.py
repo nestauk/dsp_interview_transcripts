@@ -76,7 +76,9 @@ def match_questions(bot_qs_list, questions, threshold=0.85):
     return final_matches
 
 def get_best_matches(bot_qs, final_matches, questions_df):
-    """ Create a dataframe of the original bot utterances and the questions they were matched to"""
+    """
+    Create a dataframe of the original bot utterances and the questions they were matched to
+    """
     questions_matched = pd.merge(bot_qs, final_matches, left_on='sentences', right_on='bot_q', how='inner')
     # merge in the df that has the question number
     questions_matched = pd.merge(questions_matched, questions_df, left_on='question', right_on='question', how='left')
