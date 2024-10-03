@@ -9,7 +9,6 @@ import pandas as pd
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 import torch
-from typing import List
 
 from dsp_interview_transcripts import PROJECT_DIR, logger
 from dsp_interview_transcripts.utils.data_cleaning import clean_data, convert_timestamp, add_text_length
@@ -34,7 +33,7 @@ QUESTIONS = ["What, if anything, do you know about the Boiler Upgrade Scheme? If
              "What are some energy-efficient heating systems that you could consider, apart from the one currently in use at your home?",
              "Is there anything we've talked about you'd like to discuss further?"]
 
-def process_bot_qs(interviews_df: pd.DataFrame) -> List[str]:
+def process_bot_qs(interviews_df: pd.DataFrame) -> list:
     """Produce a list of each unique sentence produced by the bot
     """
     bot_qs = interviews_df[interviews_df['role'] == 'BOT']

@@ -22,6 +22,7 @@ altair = "^5.4.1"
 emoji = "^2.13.2"
 ftfy = "^6.2.3"
 streamlit = "^1.39.0"
+nltk = "^3.9.1"
 
 
 [tool.poetry.group.test]
