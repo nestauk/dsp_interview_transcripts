@@ -27,8 +27,10 @@ torch.manual_seed(RANDOM_SEED)
 
 SENTENCE_MODEL = SentenceTransformer("all-MiniLM-L6-v2")
 
+INTERVIEW_SECTIONS = [f"interview_q_{i}" for i in range(-1, 10) if i != 4] # there were no hits for q4 for some reason
 DATA_SOURCES = ["user_messages",
-                "q_and_a"]
+                "q_and_a",
+                ] + INTERVIEW_SECTIONS
 
 MIN_CLUSTER_SIZES = [10, 50, 100]
 
@@ -36,10 +38,12 @@ if __name__ == "__main__":
     
     for source in DATA_SOURCES:
         for cluster_size in MIN_CLUSTER_SIZES:
+            if source in INTERVIEW_SECTIONS and cluster_size>10:
+                continue
             
             df = pd.read_csv(PROJECT_DIR / f"data/{source}.csv")
             
-            if source=="user_messages":
+            if source=="user_messages" or source in INTERVIEW_SECTIONS:
                 text_col = "text_clean"
             else:
                 text_col = "q_and_a"
@@ -96,7 +100,9 @@ if __name__ == "__main__":
                 verbose=True,
                 calculate_probabilities=True,
             )
-
+            
+            # Convert NaNs to empty strings
+            df[text_col] = df[text_col].astype(str)
             docs = df[text_col].tolist()
             embeddings = SENTENCE_MODEL.encode(docs, show_progress_bar=True)
 

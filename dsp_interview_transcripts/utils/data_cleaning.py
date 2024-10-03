@@ -55,9 +55,6 @@ def clean_data(data_df):
     
     # Replace punctuation
     data_df['text_clean'] = data_df['text_clean'].apply(replace_punct)
-
-    # Then add the 'text_length' column
-    data_df = add_text_length(data_df, text_col='text_clean')
     
     return data_df
 
