@@ -11,4 +11,3 @@ The pipeline is very simple at this stage.
     - `python dsp_interview_transcripts/pipeline/topic_modelling.py`. This runs BERTopic on the datasets provided above, and also iterates over a few different minimum cluster sizes.
 
 3. Run `streamlit run dsp_interview_transcripts/pipeline/app.py`. This launches a streamlit app that allows you to inspect the outputs of BERTopic that we created in the step above.
-

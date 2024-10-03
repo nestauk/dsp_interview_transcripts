@@ -57,4 +57,3 @@ def clean_data(data_df):
     data_df['text_clean'] = data_df['text_clean'].apply(replace_punct)
     
     return data_df
-
