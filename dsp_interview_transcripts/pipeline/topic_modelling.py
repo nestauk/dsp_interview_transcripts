@@ -77,15 +77,11 @@ if __name__ == "__main__":
             # MMR
             mmr_model = MaximalMarginalRelevance(diversity=0.3)
 
-            # GPT-3.5
-            # openai_model = get_openai_model()
 
             # All representation models
             representation_model = {
                 "KeyBERT": keybert_model,
-                # "OpenAI": openai_model,  # Uncomment if you will use OpenAI
                 "MMR": mmr_model,
-                # "POS": pos_model,
             }
 
             topic_model = BERTopic(
@@ -108,8 +104,6 @@ if __name__ == "__main__":
 
             topics, probs = topic_model.fit_transform(docs, embeddings)
             
-            # save topics
-            # save probs
             # save topic model
             topic_model.save(
             PROJECT_DIR / f"outputs/topic_model_{source}_cluster_size_{cluster_size}",
@@ -119,6 +113,11 @@ if __name__ == "__main__":
             )
 
             rep_docs = topic_model.get_representative_docs()
+            
+            # Save representative docs and keywords
+            # (These will be used to obtain summaries)
+            topic_info = pd.DataFrame(topic_model.get_topic_info())
+            topic_info.to_csv(PROJECT_DIR / f"outputs/{source}_cluster_size_{cluster_size}_topic_info.csv", index=False)
 
             umap_2d = UMAP(random_state=RANDOM_SEED, n_components=2)
             embeddings_2d = umap_2d.fit_transform(embeddings)
