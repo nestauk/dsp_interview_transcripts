@@ -9,8 +9,21 @@ streamlit run dsp_interview_transcripts/pipeline/app.py
 import streamlit as st
 import pandas as pd
 import altair as alt
+import re
 
 from dsp_interview_transcripts import PROJECT_DIR
+
+QUESTIONS = ["What, if anything, do you know about the Boiler Upgrade Scheme? If you don't know anything about the scheme, just give it your best guess.",
+             "What, if anything, do you know about the process of applying for Boiler Upgrade Scheme funding?",
+             "What do you think are the eligibility requirements for someone to use this scheme?",
+             "How would you go about finding out more about the Boiler Upgrade Scheme",
+             "What do you think about there being eligiblity requirements for a scheme like this?",
+             "As a homeowner, where do you see yourself in relation to the eligibility requirements?",
+             "What, if any, type of work do you think needs to be done to a house to replace fossil fuel heating systems?",
+             "What types of home upgrades would you consider getting done to your house to improve the efficiency of your heating system?",
+             "What types of work to your house wouldn't you consider?",
+             "What are some energy-efficient heating systems that you could consider, apart from the one currently in use at your home?",
+             "Is there anything we've talked about you'd like to discuss further?"]
 
 # Define the app layout
 st.title("Topic Modeling Visualization")
@@ -22,6 +35,14 @@ DATA_SOURCES = ["user_messages",
 
 # Input options
 data_source = st.selectbox("Select Data Source", DATA_SOURCES)
+
+if data_source in INTERVIEW_SECTIONS:
+    index = data_source.split("_")[-1]
+    if index=="-1":
+        st.info("These responses could not be matched to a question from the prompt.")
+    else:
+        st.info(QUESTIONS[int(index)])
+
 minimum_cluster_size = st.selectbox("Select Minimum Cluster Size", [10, 50, 100])
 
 # Validation: Prevent selection of '100' and 'home_upgrades_user' together
