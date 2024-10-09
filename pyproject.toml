@@ -19,6 +19,10 @@ jupyter = "^1.1.1"
 python-dotenv = "^1.0.1"
 matplotlib = "^3.9.2"
 altair = "^5.4.1"
+emoji = "^2.13.2"
+ftfy = "^6.2.3"
+streamlit = "^1.39.0"
+nltk = "^3.9.1"
 
 
 [tool.poetry.group.test]
@@ -79,7 +83,7 @@ force_single_line = true
 combine_as_imports = true
 lines_between_types = 1
 lines_after_imports = 2
-src_paths = ["discovery_utils", "tests"]
+src_paths = ["dsp_interview_transcripts", "tests"]
 line_length = 119
 
 [tool.flake8]
@@ -136,7 +140,7 @@ addopts = """
   --color=yes
   --assert=plain
   --cov-report term
-  --cov=discovery_utils
+  --cov=dsp_interview_transcripts
   --last-failed
 """
 testpaths = [
