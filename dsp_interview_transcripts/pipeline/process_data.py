@@ -1,7 +1,7 @@
 import pandas as pd
 
 from dsp_interview_transcripts import PROJECT_DIR, logger
-from dsp_interview_transcripts.utils.data_cleaning import clean_data, convert_timestamp, add_text_length
+from dsp_interview_transcripts.utils.data_cleaning import clean_data, convert_timestamp, add_text_length, remove_preamble
 
 DATA_PATH = PROJECT_DIR / "data/qual_af_transcripts.csv"
 
@@ -81,6 +81,9 @@ if __name__ == "__main__":
     # Make sure the conversations are sorted by time, so that the replies go in the right order
     interviews_df['timestamp_clean'] = interviews_df['timestamp'].apply(convert_timestamp)
     interviews_df = interviews_df.groupby('conversation', group_keys=False).apply(lambda x: x.sort_values('timestamp_clean'))
+    
+    # Remove everything up to when bot asks if the instructions are clear - everything before is just noise
+    interviews_cleaned_df = interviews_df.groupby('conversation').apply(remove_preamble).reset_index(drop=True)
     
     # Group together consecutive responses by the same role
     interviews_df = concatenate_consecutive_roles(interviews_df)

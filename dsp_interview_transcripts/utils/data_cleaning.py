@@ -3,6 +3,37 @@ import ftfy
 import pandas as pd
 import re
 
+from sentence_transformers import SentenceTransformer
+from sklearn.metrics.pairwise import cosine_similarity
+
+# Load model
+small_model = SentenceTransformer('paraphrase-MiniLM-L3-v2')
+
+# Embed the target sentence
+TARGET_SENTENCE = "Are these instructions clear or do you need any further clarification?"
+target_embedding = small_model.encode([TARGET_SENTENCE])
+
+def remove_preamble(df, target_embedding=target_embedding, model=small_model):
+    """Get rid of everything up until the bot asks if the instructions are clear
+    """
+    # Filter BOT messages
+    bot_messages = df[df['role'] == 'BOT']
+    
+    # Embed BOT messages
+    bot_embeddings = model.encode(bot_messages['text_clean'].tolist())
+    
+    # Calculate cosine similarity
+    similarities = cosine_similarity(target_embedding, bot_embeddings).flatten()
+    
+    # Find the index of the most similar BOT message
+    most_similar_idx = similarities.argmax()
+    
+    # Get the timestamp of that message
+    cutoff_timestamp = bot_messages.iloc[most_similar_idx]['timestamp_clean']
+    
+    # Filter out messages prior to the cutoff timestamp
+    return df[df['timestamp_clean'] > cutoff_timestamp]
+
 def convert_timestamp(timestamp):
     # Remove the daylight saving time '+01:00' and trailing whitespace
     cleaned_timestamp = re.sub('\+01[\:]?00$', '', timestamp)

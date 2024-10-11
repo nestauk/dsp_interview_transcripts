@@ -30,9 +30,10 @@ SENTENCE_MODEL = SentenceTransformer("all-MiniLM-L6-v2")
 INTERVIEW_SECTIONS = [f"interview_q_{i}" for i in range(-1, 10) if i != 4] # there were no hits for q4 for some reason
 DATA_SOURCES = ["user_messages",
                 "q_and_a",
+                "interviews_chunked"
                 ] + INTERVIEW_SECTIONS
 
-MIN_CLUSTER_SIZES = [10, 50, 100]
+MIN_CLUSTER_SIZES = [5, 10, 20, 50, 100]
 
 if __name__ == "__main__":
     
@@ -40,11 +41,15 @@ if __name__ == "__main__":
         for cluster_size in MIN_CLUSTER_SIZES:
             if source in INTERVIEW_SECTIONS and cluster_size>10:
                 continue
+            if source=="interviews_chunked" and cluster_size>20:
+                continue
             
             df = pd.read_csv(PROJECT_DIR / f"data/{source}.csv")
             
             if source=="user_messages" or source in INTERVIEW_SECTIONS:
                 text_col = "text_clean"
+            elif source=="interviews_chunked":
+                text_col = "chunk_text"
             else:
                 text_col = "q_and_a"
             
@@ -129,8 +134,13 @@ if __name__ == "__main__":
             df_vis = df_vis.merge(topic_lookup, left_on="topic", right_on="Topic", how="left")
             df_vis["doc"] = docs
 
+            if source=="interviews_chunked":
+                base_df = df[['conversation',text_col]]
+            else:
+                base_df = df[["uuid","conversation",text_col]]
+                
             df_vis = pd.merge(
-                    df[["uuid","conversation",text_col]],
+                    base_df,
                     df_vis,
                     left_on=text_col,
                     right_on="doc",
