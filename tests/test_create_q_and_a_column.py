@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from dsp_interview_transcripts.pipeline.process_data import create_q_and_a_column, concatenate_consecutive_roles
+from dsp_interview_transcripts.pipeline.archive.process_data import create_q_and_a_column, concatenate_consecutive_roles
 
 
 @pytest.fixture

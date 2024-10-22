@@ -3,8 +3,10 @@ import glob
 import json
 from langchain_community.chat_models import ChatOllama
 import os
+import numpy as np
 import pandas as pd
 import re
+from typing import List
 
 from langchain_core.output_parsers import JsonOutputParser
 from pydantic import BaseModel, Field
@@ -18,23 +20,24 @@ class NameDescription(BaseModel):
     
 prompt = """
     I have performed text clustering on some interviews where users were asked about their knowledge of
-    and opinions on different home heating options. These texts may contain user responses, interviewer questions,
-    or both.
+    and opinions on different home heating options. In the interview, users were asked about their knowledge
+    of the Boiler Upgrade Scheme, a scheme that provides a subsidy to homeowners wishing to install a heatpump
+    instead of getting a new gas boiler for their home.
     \n
-    One of the clusters contains the following texts from the interviews:
+    One of the clusters contains the following user responses from the interviews:
     {docs}
     The cluster is described by the following keywords: {keywords}
     \n
-    Based on the information above, please provide a name and description for the cluster as a JSON object with two fields: 
-    - name (a short, informative name for the cluster) 
-    - description (a brief description of the cluster).
+    Based on the information above, please provide a name and summary for the cluster as a JSON object with two fields: 
+    - name: A short, informative name for the cluster 
+    - description: A summary of views of users within the cluster. You can include sentiments they express, reasons for their views, their knowledge levels, and any other relevant information.
     \n
     Provide nothing except for this JSON dict.
     \n
     Example:
     {{
         "name": "Energy Efficiency",
-        "description": "This cluster focuses on users' concerns about energy efficiency when choosing home heating options."
+        "description": "This cluster contains users responses about energy efficiency when choosing home heating options. The users have varying degrees of knowledge about the efficiency of different systems. Some reasons for wanting to improve efficiency include environmental concerns and cost concerns."
     }}
     """
 
@@ -54,74 +57,58 @@ ollama_model = ChatOllama(
 
 llm_chain = final_prompt | ollama_model | parser
 
-INPUT_PATH = PROJECT_DIR / "outputs"
-
+INPUT_PATH = PROJECT_DIR / "outputs/user_messages_min_len_9_w_sentiment_topics_representative_docs.csv"
 
 def save_list_of_dicts_as_jsonl(data, output_path):
     with open(output_path, "w") as f:
         for entry in data:
             json_line = json.dumps(entry)
             f.write(json_line + "\n")
+            
+def name_topics(topic_info: pd.DataFrame, llm_chain, topics: List[str], text_col='text_clean', top_words_col = 'Top Words',
+                topic_label_col='Cluster') -> dict:
+    results = {}
+        
+    for topic in topics:
+        logger.info(f"Processing topic {topic}")
+        temp_df = topic_info[topic_info[topic_label_col] == topic]
+        docs = temp_df[text_col].values[0]
+        logger.info(f"Docs: {docs}")
+        keywords = temp_df[top_words_col].values[0]
+        logger.info(f"Keywords: {keywords}")
+                
+        try:
+            output = llm_chain.invoke({"docs": docs, "keywords": keywords})
+            print(output['name'], output['description'])
+            results[topic] = output
+
+        except Exception as e:
+            logger.error(f"Error processing topic {topic}: {str(e)}")
+            errors.append({"topic": topic, "error": str(e)})
+    
+    return results
 
 if __name__ == "__main__":
 
-    files = glob.glob(os.path.join(INPUT_PATH, '**', '*topic_info.csv'), recursive=True)
-
-    filelist = []
-
-    for file in files:
-        filelist.append(os.path.basename(file))
-        
-    output = []
-
-    for file in filelist:
-        split1 = re.split('_cluster_size', file)
-        source = split1[0]
-        split2 = re.split('_', split1[1])
-        cluster_size = split2[1]
-        output.append({'filename': file, 'source': source, 'cluster_size': cluster_size})
-        
-    files_df = pd.DataFrame(output)
-    
     errors = []
     
-    for file in filelist:
-        topic_info = pd.read_csv(PROJECT_DIR / f"outputs/{file}")
-        source = files_df[files_df['filename']==file]['source'].values[0]
-        cluster_size = files_df[files_df['filename']==file]['cluster_size'].values[0]
-        print(f"Processing {source} with cluster size {cluster_size}")
-
-        for col in ['Representation', 'KeyBERT', 'MMR', 'Representative_Docs']:
-            topic_info[col] = topic_info[col].apply(ast.literal_eval)
+    topic_info = pd.read_csv(INPUT_PATH)
+    
+    topic_info = topic_info.groupby(['Cluster', 'Top Words'])['text_clean'].apply(list).reset_index()
+    topic_info['Cluster'] = topic_info['Cluster'].astype(str)
                 
-        topics = topic_info["Topic"].unique()
+    topics = topic_info["Cluster"].unique().tolist()
         
-        results = {}
+    results = name_topics(topic_info, llm_chain, topics, text_col='text_clean', top_words_col = 'Top Words',
+                topic_label_col='Cluster')
         
-        for topic in topics:
-            if topic==-1:
-                continue
-            else:
-                logger.info(f"Processing topic {topic} with model {model}")
-                temp_df = topic_info[topic_info["Topic"] == topic]
-                docs = temp_df['Representative_Docs'].values[0]
-                keywords = temp_df['MMR'].values[0]
-                
-                try:
-                    output = llm_chain.invoke({"docs": docs, "keywords": keywords})
-                    results[topic] = output
-
-                except Exception as e:
-                    logger.error(f"Error processing topic {topic}: {str(e)}")
-                    errors.append({"file": file, "source": source, "cluster_size": cluster_size, "topic": topic, "error": str(e)})    
-        
-        ## Some complicated conditionals to check that what's in `results` can be parsed ##            
-        topic_info[f'{model}_name'] = topic_info['Topic'].map(lambda x: results[x]['name'] if x in results and isinstance(results[x], dict) and 'name' in results[x] else None)
-        topic_info[f'{model}_description'] = topic_info['Topic'].map(lambda x: results[x]['description'] if x in results and isinstance(results[x], dict) and 'description' in results[x] else None)
+    ## Some complicated conditionals to check that what's in `results` can be parsed ##            
+    topic_info[f'{model}_name'] = topic_info['Cluster'].map(lambda x: results[x]['name'] if x in results and isinstance(results[x], dict) and 'name' in results[x] else None)
+    topic_info[f'{model}_description'] = topic_info['Cluster'].map(lambda x: results[x]['description'] if x in results and isinstance(results[x], dict) and 'description' in results[x] else None)
             
-        logger.info("Saving output...")
-        topic_info.to_csv(PROJECT_DIR / f"outputs/{source}_cluster_size_{cluster_size}_topic_info_with_names_descriptions.csv", index=False)
-        logger.info("Done!")
+    logger.info("Saving output...")
+    topic_info.to_csv(PROJECT_DIR / f"outputs/user_messages_min_len_9_w_sentiment_topics_with_names_descriptions.csv", index=False)
+    logger.info("Done!")
     
     ## Save errors so that they can be loaded in and manually reprocessed if necessary ##
     save_list_of_dicts_as_jsonl(errors, PROJECT_DIR/"outputs/interim/errors.jsonl")

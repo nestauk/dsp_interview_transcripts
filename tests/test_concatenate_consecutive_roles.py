@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from dsp_interview_transcripts.pipeline.process_data import concatenate_consecutive_roles
+from dsp_interview_transcripts.pipeline.archive.process_data import concatenate_consecutive_roles
 
 
 def test_concatenate_consecutive_roles():

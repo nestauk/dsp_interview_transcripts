@@ -12,7 +12,7 @@ import torch
 
 from dsp_interview_transcripts import PROJECT_DIR, logger
 from dsp_interview_transcripts.utils.data_cleaning import clean_data, convert_timestamp, add_text_length
-from dsp_interview_transcripts.pipeline.process_data import concatenate_consecutive_roles
+from dsp_interview_transcripts.pipeline.archive.process_data import concatenate_consecutive_roles
 
 RANDOM_SEED = 42
 DATA_PATH = PROJECT_DIR / "data/qual_af_transcripts.csv"

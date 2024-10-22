@@ -5,110 +5,106 @@ Usage:
 streamlit run dsp_interview_transcripts/pipeline/app.py
 ```
 """
-import ast
 import streamlit as st
 import pandas as pd
-import altair as alt
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 from dsp_interview_transcripts import PROJECT_DIR
 
-QUESTIONS = ["What, if anything, do you know about the Boiler Upgrade Scheme? If you don't know anything about the scheme, just give it your best guess.",
-             "What, if anything, do you know about the process of applying for Boiler Upgrade Scheme funding?",
-             "What do you think are the eligibility requirements for someone to use this scheme?",
-             "How would you go about finding out more about the Boiler Upgrade Scheme",
-             "What do you think about there being eligiblity requirements for a scheme like this?",
-             "As a homeowner, where do you see yourself in relation to the eligibility requirements?",
-             "What, if any, type of work do you think needs to be done to a house to replace fossil fuel heating systems?",
-             "What types of home upgrades would you consider getting done to your house to improve the efficiency of your heating system?",
-             "What types of work to your house wouldn't you consider?",
-             "What are some energy-efficient heating systems that you could consider, apart from the one currently in use at your home?",
-             "Is there anything we've talked about you'd like to discuss further?"]
+rep_docs = pd.read_csv(PROJECT_DIR / "outputs/user_messages_min_len_9_w_sentiment_topics_representative_docs.csv")
+data = pd.read_csv(PROJECT_DIR / "outputs/user_messages_min_len_9_w_sentiment_topics.csv")
+data_w_names = pd.read_csv(PROJECT_DIR / "outputs/user_messages_min_len_9_w_sentiment_topics_with_names_descriptions.csv")
 
-# Define the app layout
-st.title("Topic Modeling Visualization")
+rep_docs = pd.merge(rep_docs, data_w_names[['Cluster', 'llama3.2_name', 'llama3.2_description']], on="Cluster", how="left")
 
-INTERVIEW_SECTIONS = [f"interview_q_{i}" for i in range(-1, 10) if i!=4]
-DATA_SOURCES = ["user_messages",
-                "q_and_a",
-                "interviews_chunked",
-                ] + INTERVIEW_SECTIONS
+data_viz = pd.merge(data, data_w_names[['Cluster', 'llama3.2_name', 'llama3.2_description']], on="Cluster", how="left")
 
-# Input options
-data_source = st.selectbox("Select Data Source", DATA_SOURCES)
+data_viz['Name'] = data_viz['llama3.2_name'].fillna("None")
+data_viz['Description'] = data_viz['llama3.2_description'].fillna("None")
 
-if data_source in INTERVIEW_SECTIONS:
-    index = data_source.split("_")[-1]
-    if index=="-1":
-        st.info("These responses could not be matched to a question from the prompt.")
-    else:
-        st.info(QUESTIONS[int(index)])
+# Set up the Streamlit app layout
+st.title("Prevalence and Sentiment Analysis")
 
-minimum_cluster_size = st.selectbox("Select Minimum Cluster Size", [5, 10, 20, 50, 100])
+# # Sidebar for user input
+# st.sidebar.header("Select Options")
 
-# Validation: Prevent selection of '100' and 'home_upgrades_user' together
-if data_source in INTERVIEW_SECTIONS and minimum_cluster_size > 10:
-    st.warning("For one of the 'interview_q' sources, you can only select a min. cluster size of 10. Please select a different combination.")
-elif data_source == "interviews_chunked" and minimum_cluster_size > 20:
-    st.warning("For 'interviews_chunked', you can only select a min. cluster size of 20. Please select a different combination.")
-else:
+# First section: Displaying the side-by-side bar plots
+# st.subheader("Side-by-side Bar Plots")
 
-    # Filepath based on user inputs
-    vis_file_path = PROJECT_DIR / f"outputs/{data_source}_cluster_size_{minimum_cluster_size}_vis.csv"
-    topic_file_path = PROJECT_DIR / f"outputs/{data_source}_cluster_size_{minimum_cluster_size}_topic_info_with_names_descriptions.csv"
-    
-    # Load the CSV data
-    @st.cache
-    def load_data(file_path):
-        return pd.read_csv(file_path)
+# # Creating the bar plot for the prevalence of each 'Name' using Seaborn
+# fig, ax = plt.subplots(1, 2, figsize=(12, 6))
 
-    # Load the data and display it
-    if vis_file_path.exists():
-        df_vis = load_data(vis_file_path)
-    else:
-        st.error(f"File not found: {vis_file_path}")
-        
-    if topic_file_path.exists():
-        topic_info = load_data(topic_file_path)
-        topic_info['Representative_Docs'] = topic_info['Representative_Docs'].apply(ast.literal_eval)
-    else:
-        st.error(f"File not found: {topic_file_path}")
-    
-    # Altair plotting
-    if not df_vis.empty:
-        
-        topic_list = list(df_vis["topic"].unique())
-        
-        # Define opacity condition
-        opacity_condition = alt.condition(
-            alt.datum.topic == -1, alt.value(0.1), alt.value(0.4)
-        )
+# # Prevalence of each 'Name'
+# sns.countplot(x='Name', data=data_viz, ax=ax[0])
+# ax[0].set_title('Prevalence of Each Name')
+# ax[0].set_xlabel('Name')
+# ax[0].set_ylabel('Count')
 
-        # Create plot
-        fig = (
-            alt.Chart(df_vis)
-            .mark_circle(size=50)
-            .encode(
-                x=alt.X(
-                    "x:Q",
-                    axis=alt.Axis(ticks=False, labels=False, title=None, grid=False),
-                ),
-                y=alt.Y(
-                    "y:Q",
-                    axis=alt.Axis(ticks=False, labels=False, title=None, grid=False),
-                ),
-                color=alt.Color("Name:N"),
-                opacity=opacity_condition,
-                tooltip=["Name:N", "Topic:N","doc:N"],
-            )
-            .properties(width=900, height=600)
-            .interactive()
-        )
+# # Percentage of 'sentiment' under each value of 'Name' using Seaborn
+# sentiment_percentage = pd.crosstab(data_viz['Name'], data_viz['sentiment'], normalize='index') * 100
+# sentiment_percentage = sentiment_percentage.reset_index().melt(id_vars='Name', var_name='sentiment', value_name='percentage')
+# sns.barplot(x='Name', y='percentage', hue='sentiment', data=sentiment_percentage, ax=ax[1], estimator=sum)
+# ax[1].set_title('Percentage of Sentiment under Each Name')
+# ax[1].set_xlabel('Name')
+# ax[1].set_ylabel('Percentage')
 
-        # Display the plot in the Streamlit app
-        st.altair_chart(fig, use_container_width=True)
-        
-        selected_topic = st.selectbox("Select topic", topic_list)
-        
-        st.table(topic_info[topic_info["Topic"] == selected_topic][["llama3.2_name", "llama3.2_description", "Name", "MMR"]])
-        
-        st.table(topic_info[topic_info["Topic"] == selected_topic][["Representative_Docs"]].explode("Representative_Docs"))
+# # Displaying the plots side by side
+# st.pyplot(fig)
+
+# Creating the bar plot for the prevalence of each 'Name' using Seaborn
+fig, ax = plt.subplots(1, 2, figsize=(12, 6))
+
+# Prevalence of each 'Name' with 'Name' on the vertical axis
+sns.countplot(y='Name', data=data_viz, ax=ax[0])  # Changed 'x' to 'y' to flip the axis
+ax[0].set_title('Prevalence of Each Topic')
+ax[0].set_ylabel(None)
+ax[0].set_xlabel('Count')
+
+# Percentage of 'sentiment' under each value of 'Name' using Seaborn (stacked)
+sentiment_percentage = pd.crosstab(data_viz['Name'], data_viz['sentiment'], normalize='index') * 100
+sentiment_percentage = sentiment_percentage.reset_index()
+
+# Plotting the stacked bar chart with 'Name' on the vertical axis
+sentiment_percentage.plot(
+    kind='barh', stacked=True, x='Name', ax=ax[1], color=sns.color_palette("viridis",3)
+)
+ax[1].set_title('Percentage of Sentiment under Each Topic')
+ax[1].set_ylabel(None)
+ax[1].set_xlabel('Percentage')
+
+# Displaying the plots side by side
+plt.tight_layout()
+st.pyplot(fig)
+
+# Second section: User selects a 'Name' and displays a table
+st.subheader("Select a Topic and Display Corresponding Texts")
+
+# Dropdown for selecting a 'Name'
+selected_name = st.selectbox("Select a Topic", data_viz['Name'].unique())
+
+if selected_name != "None":
+    st.markdown(f"**Description of the selected topic:** \n {data_viz[data_viz['Name'] == selected_name]['Description'].values[0]}")
+
+    st.markdown(f"**Keywords for the selected topic:** \n {rep_docs[rep_docs['llama3.2_name']==selected_name]['Top Words'].drop_duplicates().values[0]}")
+
+# Filtering the dataframe to display the corresponding texts for the selected 'Name'
+temp_docs = rep_docs[rep_docs['llama3.2_name'] == selected_name]
+filtered_table = temp_docs[['conversation','context', 'text_clean']]
+st.table(filtered_table)
+
+# Third section: User selects a 'question' and displays a bar plot
+st.subheader("Select a Question and Display Prevalence of Different Topics")
+
+# Dropdown for selecting a 'question'
+selected_question = st.selectbox("Select a Question", data_viz['question'].unique())
+
+# Creating a bar plot for the prevalence of 'Name' for the selected question using Seaborn
+fig2, ax2 = plt.subplots(figsize=(8, 6))
+sns.countplot(y='Name', data=data_viz[data_viz['question'] == selected_question], ax=ax2)
+ax2.set_title(f'Prevalence of topics for "{selected_question}"')
+ax2.set_xlabel(None)
+ax2.set_ylabel(None)
+
+# Displaying the bar plot
+st.pyplot(fig2)
