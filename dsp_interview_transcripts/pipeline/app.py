@@ -5,6 +5,7 @@ Usage:
 streamlit run dsp_interview_transcripts/pipeline/app.py
 ```
 """
+from io import BytesIO
 import streamlit as st
 import pandas as pd
 import seaborn as sns
@@ -25,32 +26,6 @@ data_viz['Description'] = data_viz['llama3.2_description'].fillna("None")
 
 # Set up the Streamlit app layout
 st.title("Prevalence and Sentiment Analysis")
-
-# # Sidebar for user input
-# st.sidebar.header("Select Options")
-
-# First section: Displaying the side-by-side bar plots
-# st.subheader("Side-by-side Bar Plots")
-
-# # Creating the bar plot for the prevalence of each 'Name' using Seaborn
-# fig, ax = plt.subplots(1, 2, figsize=(12, 6))
-
-# # Prevalence of each 'Name'
-# sns.countplot(x='Name', data=data_viz, ax=ax[0])
-# ax[0].set_title('Prevalence of Each Name')
-# ax[0].set_xlabel('Name')
-# ax[0].set_ylabel('Count')
-
-# # Percentage of 'sentiment' under each value of 'Name' using Seaborn
-# sentiment_percentage = pd.crosstab(data_viz['Name'], data_viz['sentiment'], normalize='index') * 100
-# sentiment_percentage = sentiment_percentage.reset_index().melt(id_vars='Name', var_name='sentiment', value_name='percentage')
-# sns.barplot(x='Name', y='percentage', hue='sentiment', data=sentiment_percentage, ax=ax[1], estimator=sum)
-# ax[1].set_title('Percentage of Sentiment under Each Name')
-# ax[1].set_xlabel('Name')
-# ax[1].set_ylabel('Percentage')
-
-# # Displaying the plots side by side
-# st.pyplot(fig)
 
 # Creating the bar plot for the prevalence of each 'Name' using Seaborn
 fig, ax = plt.subplots(1, 2, figsize=(12, 6))
@@ -76,6 +51,10 @@ ax[1].set_xlabel('Percentage')
 # Displaying the plots side by side
 plt.tight_layout()
 st.pyplot(fig)
+fig_buffer = BytesIO()
+fig.savefig(fig_buffer, format='png')
+fig_buffer.seek(0)
+st.download_button(label="Download Plot as PNG", data=fig_buffer, file_name="topic_and_sentiment_plot.png", mime="image/png")
 
 # Second section: User selects a 'Name' and displays a table
 st.subheader("Select a Topic and Display Corresponding Texts")
