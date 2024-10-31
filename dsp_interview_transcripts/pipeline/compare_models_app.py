@@ -2,7 +2,7 @@
 """
 Usage:
 ```
-streamlit run dsp_interview_transcripts/pipeline/app.py
+streamlit run dsp_interview_transcripts/pipeline/compare_models_app.py
 ```
 """
 from io import BytesIO
