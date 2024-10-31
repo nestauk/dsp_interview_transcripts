@@ -11,19 +11,9 @@ import pandas as pd
 import altair as alt
 import re
 
-from dsp_interview_transcripts import PROJECT_DIR
+from dsp_interview_transcripts import PROJECT_DIR, config
 
-QUESTIONS = ["What, if anything, do you know about the Boiler Upgrade Scheme? If you don't know anything about the scheme, just give it your best guess.",
-             "What, if anything, do you know about the process of applying for Boiler Upgrade Scheme funding?",
-             "What do you think are the eligibility requirements for someone to use this scheme?",
-             "How would you go about finding out more about the Boiler Upgrade Scheme",
-             "What do you think about there being eligiblity requirements for a scheme like this?",
-             "As a homeowner, where do you see yourself in relation to the eligibility requirements?",
-             "What, if any, type of work do you think needs to be done to a house to replace fossil fuel heating systems?",
-             "What types of home upgrades would you consider getting done to your house to improve the efficiency of your heating system?",
-             "What types of work to your house wouldn't you consider?",
-             "What are some energy-efficient heating systems that you could consider, apart from the one currently in use at your home?",
-             "Is there anything we've talked about you'd like to discuss further?"]
+QUESTIONS = config['questions']
 
 # Define the app layout
 st.title("Topic Modeling Visualization")
