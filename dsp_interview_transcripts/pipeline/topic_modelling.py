@@ -49,6 +49,10 @@ vectorizer_model = TfidfVectorizer(
             )
 
 def stratified_sample(group, n=10):
+    #TODO: filter based on hdbscan probability
+    #TODO: find docs from centre of the cluster
+    
+    
     # Calculate the sample size for each combination of 'question' and 'sentiment'
     stratified_sample = group.groupby(['question', 'sentiment']).apply(lambda x: x.sample(frac=min(1, n / len(group)), random_state=42))
     
