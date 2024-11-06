@@ -21,14 +21,10 @@ RANDOM_SEED = 42
 np.random.seed(RANDOM_SEED)
 random.seed(RANDOM_SEED)
 # PyTorch seed (used by SentenceTransformer)
-
-
 torch.manual_seed(RANDOM_SEED)
 
 SENTENCE_MODEL = SentenceTransformer("all-MiniLM-L6-v2")
-
 DATA_PATH = PROJECT_DIR / "data/user_messages_min_len_9_w_sentiment.csv"
-
 MIN_CLUSTER_SIZE = 20
 
 umap_model = UMAP(
@@ -40,7 +36,7 @@ umap_model = UMAP(
 )
 
 hdbscan_model = HDBSCAN(
-    min_cluster_size=20,
+    min_cluster_size=MIN_CLUSTER_SIZE,
     metric="euclidean",
     cluster_selection_method="eom",
     prediction_data=True,
