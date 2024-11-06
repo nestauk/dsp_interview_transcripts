@@ -7,9 +7,10 @@ ollama serve
 ```
 Alternatively check the bar at the top of your screen. A llama icon indicates that Ollama is running.
 """
-from pathlib import Path
 import subprocess
-import os
+
+from pathlib import Path
+
 
 script_parent = Path(__file__).parent
 
