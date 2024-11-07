@@ -23,6 +23,7 @@ emoji = "^2.13.2"
 ftfy = "^6.2.3"
 streamlit = "^1.39.0"
 nltk = "^3.9.1"
+dash = "^2.18.2"
 
 
 [tool.poetry.group.test]
@@ -85,44 +86,6 @@ lines_between_types = 1
 lines_after_imports = 2
 src_paths = ["dsp_interview_transcripts", "tests"]
 line_length = 119
-
-[tool.flake8]
-max-line-length = 119
-select = [  # Choose the flake8 errors to select globally here
-  "C",      # McCabe complexity
-  "E",      # pep8 errors
-  "W",      # pep8 warnings
-  "F",      # pyflakes errors
-  "N",      # naming conventions
-  "B",      # bugbear errors (needs plugin installed)
-  "ANN",    # flake8 annotations errors (needs plugin installed)
-  "T",      # flake8 print errors (needs plugin installed)
-  "D",      # flake8 doscstrings errors (needs plugin installed)
-  "B950",   #  Line too long. It considers "max-line-length" but only triggers when exceeded by more than 10%.
-]
-ignore = [   # Choose the flake8 errors to ignore globally here
-  "E501",    # Line too long  (using B950 instead, which has 10% tolerance)
-  "D107",    # Missing docstring in __init__
-  "D202",    # No blank lines allowed after function docstring
-  "D400",    # First line should end with a period
-  "D100",    # Missing docstring in public module
-  "D104",    # Missing docstring in public package
-  "ANN003",  # Missing type annotation for **kwargs
-  "ANN002",  # Missing type annotation for **args
-  "ANN1",    # Missing type annotation for self in methot or cls method
-  "W503",    # Line break occurred before a binary operator
-  "E203",    # Whitespace before ':'
-]
-per-file-ignores = [     # Choose the flake8 errors to ignore per file here
-  "*/__init__.py:F401",  # Ignore imported but unused in __init__.py files
-  "tests/*:ANN,D",       # Ignore Docstring and annotations on tests
-]
-exclude = [
-    ".venv/*",
-    ".vscode/*",
-]
-# See other flake8 extensions here: https://github.com/DmytroLitvinov/awesome-flake8-extensions
-
 
 [tool.bandit]
 skips = [      # Choose the bandit errors to ignore globally

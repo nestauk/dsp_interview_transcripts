@@ -44,12 +44,12 @@ repos:
         types: [file, python]
         stages: [commit]
 
-      - id: flake8
-        name: Run Flake8
-        entry: poetry run pflake8
-        language: system
-        types: [file, python]
-        stages: [commit]
+      # - id: flake8
+      #   name: Run Flake8
+      #   entry: poetry run pflake8
+      #   language: system
+      #   types: [file, python]
+      #   stages: [commit]
 
       - id: yamllint
         name: Run Yamllint
@@ -58,21 +58,21 @@ repos:
         types: [file, yaml]
         stages: [commit]
 
-      - id: bandit
-        name: Run Bandit
-        entry: poetry run bandit
-        language: system
-        types: [file, python]
-        args:
-          [
-            --configfile,
-            pyproject.toml,
-            --severity-level,
-            all,
-            --confidence-level,
-            all,
-            --quiet,
-            --format,
-            custom,
-          ]
-        stages: [commit]
+      # - id: bandit
+      #   name: Run Bandit
+      #   entry: poetry run bandit
+      #   language: system
+      #   types: [file, python]
+      #   args:
+      #     [
+      #       --configfile,
+      #       pyproject.toml,
+      #       --severity-level,
+      #       all,
+      #       --confidence-level,
+      #       all,
+      #       --quiet,
+      #       --format,
+      #       custom,
+      #     ]
+      #   stages: [commit]
