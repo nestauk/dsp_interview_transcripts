@@ -83,8 +83,10 @@ if __name__ == "__main__":
     user_messages = pd.read_csv(DATA_PATH)
 
     docs = user_messages["text_clean"].tolist()
+    logger.info("Embedding user messages...")
     embeddings = SENTENCE_MODEL.encode(docs, show_progress_bar=True)
 
+    logger.info("Reducing dimensionality...")
     umap_vectors = umap_model.fit_transform(embeddings)
 
     umap_df = pd.DataFrame(umap_vectors)
@@ -95,9 +97,11 @@ if __name__ == "__main__":
     model_vars = umap_vars
 
     # Normalise the umap vectors
+    logger.info("Normalising UMAP vectors...")
     scaler = StandardScaler()
     df_normalized = scaler.fit_transform(user_messages_w_umap[model_vars])
 
+    logger.info("Fitting HDBSCAN...")
     clusters = hdbscan_model.fit_predict(df_normalized)
     cluster_probabilities = hdbscan_model.probabilities_
     user_messages_w_umap["label"] = clusters
@@ -105,10 +109,12 @@ if __name__ == "__main__":
     logger.info(user_messages_w_umap["label"].value_counts())
 
     # 2d embeddings for visualisation
+    logger.info("Creating 2D embeddings for visualisation...")
     umap_2d = UMAP(random_state=RANDOM_SEED, n_components=2)
     embeddings_2d = umap_2d.fit_transform(embeddings)
 
     # topic representations
+    logger.info("Creating tfidf representation...")
     cluster_groups = user_messages_w_umap.groupby("label").agg({"text_clean": " ".join}).reset_index()
 
     tfidf_matrix = vectorizer_model.fit_transform(cluster_groups["text_clean"].to_list())

@@ -6,6 +6,7 @@ import altair as alt
 import pandas as pd
 
 from dsp_interview_transcripts import PROJECT_DIR
+from dsp_interview_transcripts import logger
 
 
 OUTPUT_PATH_FULL_DATA = PROJECT_DIR / "outputs/final/final_df.csv"
@@ -128,11 +129,15 @@ if __name__ == "__main__":
         }
     )
 
+    logger.info("Saving output table...")
     final_df.sort_values(["conversation", "timestamp"]).to_csv(OUTPUT_PATH_FULL_DATA, index=False)
 
     # Visualise clusters
+    logger.info("Saving figures...")
 
-    fig = create_scatterplot()
+    fig = create_scatterplot(
+        data_viz,
+    )
     fig.save(PROJECT_DIR / "outputs/scatter_coloured_by_topic.html")
 
     fig_questions = create_scatterplot(
