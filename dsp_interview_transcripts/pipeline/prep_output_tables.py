@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import List
 from typing import Optional
 from typing import Union
@@ -9,8 +10,12 @@ from dsp_interview_transcripts import PROJECT_DIR
 from dsp_interview_transcripts import logger
 
 
-OUTPUT_PATH_FULL_DATA = PROJECT_DIR / "outputs/final/final_df.csv"
-OUTPUT_PATH_SUMMARY = PROJECT_DIR / "outputs/final/summary_info.csv"
+OUTPUT_DIR = PROJECT_DIR / "outputs/final"
+OUTPUT_PATH_FULL_DATA = OUTPUT_DIR / "final_df.csv"
+OUTPUT_PATH_SUMMARY = OUTPUT_DIR / "summary_info.csv"
+
+# Create the output directory if it doesn't exist
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 opacity_condition = alt.condition(alt.datum.Name == "None", alt.value(0.1), alt.value(0.6))
 

@@ -1,6 +1,7 @@
 """Create topic models within each question"""
 import random
 
+from pathlib import Path
 from typing import Any
 from typing import Dict
 from typing import List
@@ -27,14 +28,11 @@ from dsp_interview_transcripts import PROJECT_DIR
 from dsp_interview_transcripts import logger
 
 
-pd.set_option("display.max_colwidth", 500)
-
 # Set random seeds
 RANDOM_SEED = 42
 np.random.seed(RANDOM_SEED)
 random.seed(RANDOM_SEED)
 # PyTorch seed (used by SentenceTransformer)
-
 torch.manual_seed(RANDOM_SEED)
 
 SENTENCE_MODEL = SentenceTransformer("all-MiniLM-L6-v2")
@@ -142,6 +140,9 @@ model = "llama3.2"
 ollama_model = ChatOllama(model=model, temperature=0)
 
 llm_chain = final_prompt | ollama_model | parser
+
+OUTPUT_DIR = PROJECT_DIR / "outputs/by_question"
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def name_topics(
@@ -309,9 +310,9 @@ if __name__ == "__main__":
 
         # Combine the charts and add a title
         combined_chart = (name_count_chart | sentiment_proportion_chart).properties(title=f"{question}")
-        combined_chart.save(PROJECT_DIR / f"outputs/by_question/{question}_name_sentiment_chart.html")
+        combined_chart.save(OUTPUT_DIR / f"{question}_name_sentiment_chart.html")
 
-    excel_file = PROJECT_DIR / "outputs/by_question/question_topic_models.xlsx"
+    excel_file = OUTPUT_DIR / "question_topic_models.xlsx"
     with pd.ExcelWriter(excel_file, engine="openpyxl") as writer:
 
         # Iterate over unique values of 'question'
