@@ -100,7 +100,7 @@ def process_bot_qs(interviews_df: pd.DataFrame) -> Tuple[List[str], pd.DataFrame
     Returns:
     - Tuple[List[str], pd.DataFrame]: A list of unique sentences and DataFrame with exploded sentences.
     """
-    bot_qs = interviews_df[interviews_df["role"] == "BOT"]
+    bot_qs = interviews_df[interviews_df["role"] == "BOT"].copy()
     # split into individual sentences so that if the original question is contained within the utterance,
     # we have a better chance of catching it
     bot_qs["sentences"] = bot_qs["text_clean"].apply(lambda x: sent_tokenize(x))
