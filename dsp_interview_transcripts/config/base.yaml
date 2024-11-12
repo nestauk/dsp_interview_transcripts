@@ -10,3 +10,14 @@ questions: ["What, if anything, do you know about the Boiler Upgrade Scheme? If 
             "What types of work to your house wouldn't you consider?",
             "What are some energy-efficient heating systems that you could consider, apart from the one currently in use at your home?",
             "Is there anything we've talked about you'd like to discuss further?"]
+min_length: 9
+test_paths:
+  interim_processed_data_s3_path: "test/interim/user_messages_min_len_{MIN_LEN}_w_sentiment.csv"
+  interim_data_w_topics_s3_path: "test/interim/user_messages_min_len_{MIN_LEN}_w_sentiment_topics.csv"
+  interim_representative_docs_s3_path: "test/interim/user_messages_min_len_{MIN_LEN}_w_sentiment_topics_representative_docs.csv"
+  interim_w_names_s3_path: "test/interim/user_messages_min_len_{MIN_LEN}_w_sentiment_topics_with_names_descriptions.csv"
+prod_paths:
+  interim_processed_data_s3_path: "interim/user_messages_min_len_{MIN_LEN}_w_sentiment.csv"
+  interim_data_w_topics_s3_path: "interim/user_messages_min_len_{MIN_LEN}_w_sentiment_topics.csv"
+  interim_representative_docs_s3_path: "interim/user_messages_min_len_{MIN_LEN}_w_sentiment_topics_representative_docs.csv"
+  interim_w_names_s3_path: "interim/user_messages_min_len_{MIN_LEN}_w_sentiment_topics_with_names_descriptions.csv"

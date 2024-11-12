@@ -8,6 +8,9 @@ import pandas as pd
 
 from dsp_interview_transcripts import PROJECT_DIR
 from dsp_interview_transcripts import logger
+from dsp_interview_transcripts.getters.interim import get_data_w_topics
+from dsp_interview_transcripts.getters.interim import get_rep_docs
+from dsp_interview_transcripts.getters.interim import get_topic_names
 
 
 OUTPUT_DIR = PROJECT_DIR / "outputs/final"
@@ -76,11 +79,9 @@ def create_scatterplot(
 
 
 if __name__ == "__main__":
-    rep_docs = pd.read_csv(PROJECT_DIR / "outputs/user_messages_min_len_9_w_sentiment_topics_representative_docs.csv")
-    data = pd.read_csv(PROJECT_DIR / "outputs/user_messages_min_len_9_w_sentiment_topics.csv")
-    data_w_names = pd.read_csv(
-        PROJECT_DIR / "outputs/user_messages_min_len_9_w_sentiment_topics_with_names_descriptions.csv"
-    )
+    rep_docs = get_rep_docs()
+    data = get_data_w_topics()
+    data_w_names = get_topic_names()
 
     topic_counts = pd.DataFrame(data["Cluster"].value_counts()).reset_index()
     topic_counts = topic_counts.rename(columns={"count": "N responses in topic"})

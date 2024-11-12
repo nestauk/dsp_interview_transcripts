@@ -1,3 +1,17 @@
+"""
+Usage:
+
+To run in test mode:
+```
+python dsp_interview_transcripts/pipeline/process_data.py
+```
+
+To run in production mode, add the flag `production`:
+```
+python dsp_interview_transcripts/pipeline/process_data.py production
+```
+"""
+
 import random
 
 from typing import List
@@ -6,6 +20,7 @@ from typing import Tuple
 import nltk
 import numpy as np
 import pandas as pd
+import plac
 import torch
 
 from nltk.corpus import stopwords
@@ -16,9 +31,11 @@ from sklearn.metrics.pairwise import cosine_similarity
 from transformers import AutoModelForSequenceClassification
 from transformers import AutoTokenizer
 
-from dsp_interview_transcripts import PROJECT_DIR
+from dsp_interview_transcripts import S3_BUCKET
 from dsp_interview_transcripts import config
 from dsp_interview_transcripts import logger
+from dsp_interview_transcripts.getters.data_getters import save_to_s3
+from dsp_interview_transcripts.getters.raw import get_raw_transcripts
 from dsp_interview_transcripts.utils.data_cleaning import add_text_length
 from dsp_interview_transcripts.utils.data_cleaning import clean_data
 from dsp_interview_transcripts.utils.data_cleaning import convert_timestamp
@@ -40,11 +57,7 @@ torch.manual_seed(RANDOM_SEED)
 
 SENTENCE_MODEL = SentenceTransformer("all-MiniLM-L6-v2")
 
-DATA_PATH = PROJECT_DIR / "data/qual_af_transcripts.csv"
-
 QUESTIONS = config["questions"]
-
-MIN_LEN = 9
 
 
 def concatenate_consecutive_roles(
@@ -166,7 +179,7 @@ def get_best_matches(bot_qs: pd.DataFrame, final_matches: pd.DataFrame, question
 
     uuid_question_counts = questions_matched.groupby("uuid")["question"].nunique()
     logger.info(
-        f"The following utterances match to more than once question: {uuid_question_counts[uuid_question_counts > 1]}"
+        f"The following utterances match to more than one question: {uuid_question_counts[uuid_question_counts > 1]}"
     )
 
     # Group by 'uuid' and keep the row with the highest 'cosine_similarity'
@@ -238,8 +251,16 @@ def create_context(row: pd.Series, df: pd.DataFrame) -> str:
         return " | ".join(prev_rows["text_clean"])
 
 
-if __name__ == "__main__":
-    interviews_df = pd.read_csv(DATA_PATH)
+def main(production: bool = False):
+
+    MIN_LEN = config["min_length"]
+    if production:
+        DATA_OUT_PATH = config["prod_paths"]["interim_processed_data_s3_path"]
+    else:
+        DATA_OUT_PATH = config["test_paths"]["interim_processed_data_s3_path"]
+    DATA_OUT_PATH = DATA_OUT_PATH.format(MIN_LEN=MIN_LEN)
+
+    interviews_df = get_raw_transcripts()
     interviews_df = clean_data(interviews_df)
 
     logger.info(f"Number of interviews: {len(interviews_df['conversation'].unique())}")
@@ -254,26 +275,26 @@ if __name__ == "__main__":
     interviews_cleaned_df = interviews_df.groupby("conversation").apply(remove_preamble).reset_index(drop=True)
 
     # Group together consecutive responses by the same role
-    interviews_df = concatenate_consecutive_roles(interviews_df)
+    interviews_cleaned_df = concatenate_consecutive_roles(interviews_cleaned_df)
 
     questions_df = pd.DataFrame(enumerate(QUESTIONS), columns=["q_number", "question"])
 
-    bot_qs_list, bot_qs = process_bot_qs(interviews_df)
+    bot_qs_list, bot_qs = process_bot_qs(interviews_cleaned_df)
 
     final_matches = match_questions(bot_qs_list, QUESTIONS)
 
     questions_highest_similarity = get_best_matches(bot_qs, final_matches, questions_df)
 
     # Merge back into the original df
-    interviews_df = pd.merge(
-        interviews_df,
+    interviews_cleaned_df = pd.merge(
+        interviews_cleaned_df,
         questions_highest_similarity[["uuid", "question", "q_number", "cosine_similarity"]],
         on="uuid",
         how="left",
     )
 
     # Forward fill the matched questions and their question numbers
-    interviews_q_filled = interviews_df.copy()
+    interviews_q_filled = interviews_cleaned_df.copy()
     interviews_q_filled["question"] = interviews_q_filled.groupby("conversation")["question"].ffill()
     interviews_q_filled["q_number"] = interviews_q_filled.groupby("conversation")["q_number"].ffill()
 
@@ -296,6 +317,10 @@ if __name__ == "__main__":
     logger.info(f"Number of user messages: {len(user_messages)}")
 
     logger.info("Saving data...")
-    user_messages.to_csv(PROJECT_DIR / f"data/user_messages_min_len_{MIN_LEN}_w_sentiment.csv", index=False)
+    save_to_s3(S3_BUCKET, user_messages, DATA_OUT_PATH)
 
     logger.info("Done!")
+
+
+if __name__ == "__main__":
+    plac.call(main)

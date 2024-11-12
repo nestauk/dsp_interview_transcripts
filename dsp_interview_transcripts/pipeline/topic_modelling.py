@@ -4,6 +4,7 @@ from collections import defaultdict
 
 import numpy as np
 import pandas as pd
+import plac
 import torch
 
 from hdbscan import HDBSCAN
@@ -13,7 +14,11 @@ from sklearn.preprocessing import StandardScaler
 from umap import UMAP
 
 from dsp_interview_transcripts import PROJECT_DIR
+from dsp_interview_transcripts import S3_BUCKET
+from dsp_interview_transcripts import config
 from dsp_interview_transcripts import logger
+from dsp_interview_transcripts.getters.data_getters import save_to_s3
+from dsp_interview_transcripts.getters.interim import get_cleaned_data
 
 
 # Set random seeds
@@ -24,7 +29,7 @@ random.seed(RANDOM_SEED)
 torch.manual_seed(RANDOM_SEED)
 
 SENTENCE_MODEL = SentenceTransformer("all-MiniLM-L6-v2")
-DATA_PATH = PROJECT_DIR / "data/user_messages_min_len_9_w_sentiment.csv"
+
 MIN_CLUSTER_SIZE = 20
 
 umap_model = UMAP(
@@ -79,8 +84,17 @@ def stratified_sample(group: pd.DataFrame, n: int = 10) -> pd.DataFrame:
     return stratified_sample.reset_index(drop=True)
 
 
-if __name__ == "__main__":
-    user_messages = pd.read_csv(DATA_PATH)
+def main(production: bool = False):
+
+    MIN_LEN = config["min_length"]
+    if production:
+        OUT_PATH_FULL_DATA = config["prod_paths"]["interim_data_w_topics_s3_path"].format(MIN_LEN=MIN_LEN)
+        OUT_PATH_REP_DOCS = config["prod_paths"]["interim_representative_docs_s3_path"].format(MIN_LEN=MIN_LEN)
+    else:
+        OUT_PATH_FULL_DATA = config["test_paths"]["interim_data_w_topics_s3_path"].format(MIN_LEN=MIN_LEN)
+        OUT_PATH_REP_DOCS = config["test_paths"]["interim_representative_docs_s3_path"].format(MIN_LEN=MIN_LEN)
+
+    user_messages = get_cleaned_data(production=production)
 
     docs = user_messages["text_clean"].tolist()
     logger.info("Embedding user messages...")
@@ -146,9 +160,8 @@ if __name__ == "__main__":
     user_messages_w_umap_topics["x"] = embeddings_2d[:, 0]
     user_messages_w_umap_topics["y"] = embeddings_2d[:, 1]
 
-    user_messages_w_umap_topics.to_csv(
-        PROJECT_DIR / "outputs/user_messages_min_len_9_w_sentiment_topics.csv", index=False
-    )
+    logger.info("Saving data...")
+    save_to_s3(S3_BUCKET, user_messages_w_umap_topics, OUT_PATH_FULL_DATA)
 
     # save most representative documents
 
@@ -162,6 +175,15 @@ if __name__ == "__main__":
     # Keep only the first 10 samples per cluster
     sampled_texts = sampled_texts.groupby("Cluster").head(10)
 
-    sampled_texts[
-        ["Cluster", "Top Words", "text_clean", "sentiment", "question", "context", "conversation", "uuid", "probs"]
-    ].to_csv(PROJECT_DIR / "outputs/user_messages_min_len_9_w_sentiment_topics_representative_docs.csv", index=False)
+    logger.info("Saving data...")
+    save_to_s3(
+        S3_BUCKET,
+        sampled_texts[
+            ["Cluster", "Top Words", "text_clean", "sentiment", "question", "context", "conversation", "uuid", "probs"]
+        ],
+        OUT_PATH_REP_DOCS,
+    )
+
+
+if __name__ == "__main__":
+    plac.call(main)
