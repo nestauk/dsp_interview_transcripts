@@ -42,7 +42,7 @@ prompt = """
     Example:
     {{
         "name": "Energy Efficiency",
-        "description": "This cluster contains users responses about energy efficiency when choosing home heating options. The users have varying degrees of knowledge about the efficiency of different systems. Some reasons for wanting to improve efficiency include environmental concerns and cost concerns."
+        "description": "This cluster contains user responses about energy efficiency when choosing home heating options. The users have varying degrees of knowledge about the efficiency of different systems. Some reasons for wanting to improve efficiency include environmental concerns and cost concerns."
     }}
     """
 
