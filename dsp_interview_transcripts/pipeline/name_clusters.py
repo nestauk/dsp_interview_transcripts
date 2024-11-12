@@ -63,20 +63,6 @@ llm_chain = final_prompt | ollama_model | parser
 INPUT_PATH = PROJECT_DIR / "outputs/user_messages_min_len_9_w_sentiment_topics_representative_docs.csv"
 
 
-def save_list_of_dicts_as_jsonl(data: List[dict], output_path: str) -> None:
-    """
-    Save a list of dictionaries as a JSONL file.
-
-    Args:
-        data (List[dict]): The list of dictionaries to save.
-        output_path (str): The path to the output JSONL file.
-    """
-    with open(output_path, "w") as f:
-        for entry in data:
-            json_line = json.dumps(entry)
-            f.write(json_line + "\n")
-
-
 def name_topics(
     topic_info: pd.DataFrame,
     llm_chain,
@@ -142,8 +128,6 @@ def name_topics(
 
 if __name__ == "__main__":
 
-    errors = []
-
     topic_info = pd.read_csv(INPUT_PATH)
 
     topic_info = topic_info.groupby(["Cluster", "Top Words"])["text_clean"].apply(list).reset_index()
@@ -172,6 +156,3 @@ if __name__ == "__main__":
         PROJECT_DIR / "outputs/user_messages_min_len_9_w_sentiment_topics_with_names_descriptions.csv", index=False
     )
     logger.info("Done!")
-
-    # Save errors so that they can be loaded in and manually reprocessed if necessary
-    save_list_of_dicts_as_jsonl(errors, PROJECT_DIR / "outputs/interim/errors.jsonl")
