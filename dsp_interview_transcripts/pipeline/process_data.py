@@ -113,7 +113,7 @@ def process_bot_qs(interviews_df: pd.DataFrame) -> Tuple[List[str], pd.DataFrame
     Returns:
     - Tuple[List[str], pd.DataFrame]: A list of unique sentences and DataFrame with exploded sentences.
     """
-    bot_qs = interviews_df[interviews_df["role"] == "BOT"]
+    bot_qs = interviews_df[interviews_df["role"] == "BOT"].copy()
     # split into individual sentences so that if the original question is contained within the utterance,
     # we have a better chance of catching it
     bot_qs["sentences"] = bot_qs["text_clean"].apply(lambda x: sent_tokenize(x))
@@ -265,17 +265,17 @@ def main(production: bool = False):
 
     logger.info(f"Number of interviews: {len(interviews_df['conversation'].unique())}")
 
-    # Make sure the conversations are sorted by time, so that the replies go in the right order
-    interviews_df["timestamp_clean"] = interviews_df["timestamp"].apply(convert_timestamp)
-    interviews_df = interviews_df.groupby("conversation", group_keys=False).apply(
-        lambda x: x.sort_values("timestamp_clean")
+    interviews_cleaned_df = (
+        interviews_df
+        # Make sure the conversations are sorted by time, so that the replies go in the right order
+        .assign(timestamp_clean=lambda df: df["timestamp"].apply(convert_timestamp))
+        .groupby("conversation", group_keys=False)
+        .apply(lambda x: x.sort_values("timestamp_clean"))
+        # Remove everything up to when bot asks if the instructions are clear - everything before is just noise
+        .pipe(lambda df: df.groupby("conversation").apply(remove_preamble).reset_index(drop=True))
+        # Group together consecutive responses by the same role
+        .pipe(concatenate_consecutive_roles)
     )
-
-    # Remove everything up to when bot asks if the instructions are clear - everything before is just noise
-    interviews_cleaned_df = interviews_df.groupby("conversation").apply(remove_preamble).reset_index(drop=True)
-
-    # Group together consecutive responses by the same role
-    interviews_cleaned_df = concatenate_consecutive_roles(interviews_cleaned_df)
 
     questions_df = pd.DataFrame(enumerate(QUESTIONS), columns=["q_number", "question"])
 
@@ -294,13 +294,15 @@ def main(production: bool = False):
     )
 
     # Forward fill the matched questions and their question numbers
-    interviews_q_filled = interviews_cleaned_df.copy()
-    interviews_q_filled["question"] = interviews_q_filled.groupby("conversation")["question"].ffill()
-    interviews_q_filled["q_number"] = interviews_q_filled.groupby("conversation")["q_number"].ffill()
-
-    interviews_q_filled = add_text_length(interviews_q_filled)
-
-    interviews_q_filled["context"] = interviews_q_filled.apply(create_context, df=interviews_q_filled, axis=1)
+    interviews_q_filled = (
+        interviews_cleaned_df.copy()
+        .assign(
+            question=lambda df: df.groupby("conversation")["question"].ffill(),
+            q_number=lambda df: df.groupby("conversation")["q_number"].ffill(),
+        )
+        .pipe(add_text_length)
+        .assign(context=lambda df: df.apply(create_context, df=df, axis=1))
+    )
 
     user_messages = interviews_q_filled[
         (interviews_q_filled["role"] == "USER") & (interviews_q_filled["text_length"] > MIN_LEN)

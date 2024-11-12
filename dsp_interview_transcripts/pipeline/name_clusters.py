@@ -47,7 +47,7 @@ prompt = """
     Example:
     {{
         "name": "Energy Efficiency",
-        "description": "This cluster contains users responses about energy efficiency when choosing home heating options. The users have varying degrees of knowledge about the efficiency of different systems. Some reasons for wanting to improve efficiency include environmental concerns and cost concerns."
+        "description": "This cluster contains user responses about energy efficiency when choosing home heating options. The users have varying degrees of knowledge about the efficiency of different systems. Some reasons for wanting to improve efficiency include environmental concerns and cost concerns."
     }}
     """
 
@@ -69,7 +69,6 @@ llm_chain = final_prompt | ollama_model | parser
 def name_topics(
     topic_info: pd.DataFrame,
     llm_chain,
-    topics: List[str],
     text_col: str = "text_clean",
     top_words_col: str = "Top Words",
     topic_label_col: str = "Cluster",
@@ -106,6 +105,7 @@ def name_topics(
             "Topic 2": {"name": "Product Quality", "description": "Documents focusing on product durability and performance."}
         }
     """
+    topics = topic_info["Cluster"].unique().tolist()
 
     results = {}
 
@@ -142,10 +142,8 @@ def main(production: bool = False):
     topic_info = topic_info.groupby(["Cluster", "Top Words"])["text_clean"].apply(list).reset_index()
     topic_info["Cluster"] = topic_info["Cluster"].astype(str)
 
-    topics = topic_info["Cluster"].unique().tolist()
-
     results = name_topics(
-        topic_info, llm_chain, topics, text_col="text_clean", top_words_col="Top Words", topic_label_col="Cluster"
+        topic_info, llm_chain, text_col="text_clean", top_words_col="Top Words", topic_label_col="Cluster"
     )
 
     # Some complicated conditionals to check that what's in `results` can be parsed

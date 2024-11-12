@@ -95,26 +95,27 @@ if __name__ == "__main__":
         rep_docs, data_w_names[["Cluster", "Name", "Description", "N responses in topic"]], on="Cluster", how="left"
     )
 
-    data_viz = pd.merge(data, data_w_names[["Cluster", "Name", "Description"]], on="Cluster", how="left")
-
-    data_viz["Name"] = data_viz["Name"].fillna("None")
-    data_viz["Description"] = data_viz["Description"].fillna("None")
-
-    # Create binary column to indicate whether the user response is representative of the topic
-    merged_df = data_viz.merge(
-        rep_docs[["conversation", "uuid", "Name"]], on=["conversation", "uuid", "Name"], how="left", indicator=True
+    data_viz = (
+        data.merge(data_w_names[["Cluster", "Name", "Description"]], on="Cluster", how="left")
+        .assign(Name=lambda df: df["Name"].fillna("None"))
+        .assign(Description=lambda df: df["Description"].fillna("None"))
     )
 
-    merged_df["Representative of topic"] = (merged_df["_merge"] == "both").astype(int)
-
-    merged_df = merged_df.drop(columns=["_merge"])
+    # Create binary column to indicate whether the user response is representative of the topic
+    merged_df = (
+        data_viz.merge(
+            rep_docs[["conversation", "uuid", "Name"]], on=["conversation", "uuid", "Name"], how="left", indicator=True
+        )
+        .assign(Representative_of_topic=lambda df: (df["_merge"] == "both").astype(int))
+        .drop(columns=["_merge"])
+    )
 
     final_df = merged_df[
         [
             "Name",
             "Description",
             "Top Words",
-            "Representative of topic",
+            "Representative_of_topic",
             "question",
             "context",
             "text_clean",
