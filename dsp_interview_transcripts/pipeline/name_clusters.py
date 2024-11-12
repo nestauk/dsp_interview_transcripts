@@ -66,7 +66,6 @@ INPUT_PATH = PROJECT_DIR / "outputs/user_messages_min_len_9_w_sentiment_topics_r
 def name_topics(
     topic_info: pd.DataFrame,
     llm_chain,
-    topics: List[str],
     text_col: str = "text_clean",
     top_words_col: str = "Top Words",
     topic_label_col: str = "Cluster",
@@ -103,6 +102,7 @@ def name_topics(
             "Topic 2": {"name": "Product Quality", "description": "Documents focusing on product durability and performance."}
         }
     """
+    topics = topic_info["Cluster"].unique().tolist()
 
     results = {}
 
@@ -133,10 +133,8 @@ if __name__ == "__main__":
     topic_info = topic_info.groupby(["Cluster", "Top Words"])["text_clean"].apply(list).reset_index()
     topic_info["Cluster"] = topic_info["Cluster"].astype(str)
 
-    topics = topic_info["Cluster"].unique().tolist()
-
     results = name_topics(
-        topic_info, llm_chain, topics, text_col="text_clean", top_words_col="Top Words", topic_label_col="Cluster"
+        topic_info, llm_chain, text_col="text_clean", top_words_col="Top Words", topic_label_col="Cluster"
     )
 
     # Some complicated conditionals to check that what's in `results` can be parsed

@@ -244,42 +244,44 @@ if __name__ == "__main__":
 
     logger.info(f"Number of interviews: {len(interviews_df['conversation'].unique())}")
 
-    # Make sure the conversations are sorted by time, so that the replies go in the right order
-    interviews_df["timestamp_clean"] = interviews_df["timestamp"].apply(convert_timestamp)
-    interviews_df = interviews_df.groupby("conversation", group_keys=False).apply(
-        lambda x: x.sort_values("timestamp_clean")
+    interviews_cleaned_df = (
+        interviews_df
+        # Make sure the conversations are sorted by time, so that the replies go in the right order
+        .assign(timestamp_clean=lambda df: df["timestamp"].apply(convert_timestamp))
+        .groupby("conversation", group_keys=False)
+        .apply(lambda x: x.sort_values("timestamp_clean"))
+        # Remove everything up to when bot asks if the instructions are clear - everything before is just noise
+        .pipe(lambda df: df.groupby("conversation").apply(remove_preamble).reset_index(drop=True))
+        # Group together consecutive responses by the same role
+        .pipe(concatenate_consecutive_roles)
     )
-
-    # Remove everything up to when bot asks if the instructions are clear - everything before is just noise
-    interviews_cleaned_df = interviews_df.groupby("conversation").apply(remove_preamble).reset_index(drop=True)
-
-    # Group together consecutive responses by the same role
-    interviews_df = concatenate_consecutive_roles(interviews_df)
 
     questions_df = pd.DataFrame(enumerate(QUESTIONS), columns=["q_number", "question"])
 
-    bot_qs_list, bot_qs = process_bot_qs(interviews_df)
+    bot_qs_list, bot_qs = process_bot_qs(interviews_cleaned_df)
 
     final_matches = match_questions(bot_qs_list, QUESTIONS)
 
     questions_highest_similarity = get_best_matches(bot_qs, final_matches, questions_df)
 
     # Merge back into the original df
-    interviews_df = pd.merge(
-        interviews_df,
+    interviews_cleaned_df = pd.merge(
+        interviews_cleaned_df,
         questions_highest_similarity[["uuid", "question", "q_number", "cosine_similarity"]],
         on="uuid",
         how="left",
     )
 
     # Forward fill the matched questions and their question numbers
-    interviews_q_filled = interviews_df.copy()
-    interviews_q_filled["question"] = interviews_q_filled.groupby("conversation")["question"].ffill()
-    interviews_q_filled["q_number"] = interviews_q_filled.groupby("conversation")["q_number"].ffill()
-
-    interviews_q_filled = add_text_length(interviews_q_filled)
-
-    interviews_q_filled["context"] = interviews_q_filled.apply(create_context, df=interviews_q_filled, axis=1)
+    interviews_q_filled = (
+        interviews_cleaned_df.copy()
+        .assign(
+            question=lambda df: df.groupby("conversation")["question"].ffill(),
+            q_number=lambda df: df.groupby("conversation")["q_number"].ffill(),
+        )
+        .pipe(add_text_length)
+        .assign(context=lambda df: df.apply(create_context, df=df, axis=1))
+    )
 
     user_messages = interviews_q_filled[
         (interviews_q_filled["role"] == "USER") & (interviews_q_filled["text_length"] > MIN_LEN)
