@@ -1,141 +1,167 @@
-from bertopic import BERTopic
+import random
+
+from collections import defaultdict
+
 import numpy as np
 import pandas as pd
-import random
-from sentence_transformers import SentenceTransformer
+import torch
 
 from hdbscan import HDBSCAN
+from sentence_transformers import SentenceTransformer
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.preprocessing import StandardScaler
 from umap import UMAP
-from sklearn.feature_extraction.text import CountVectorizer
-from bertopic.representation import (
-    KeyBERTInspired,
-    MaximalMarginalRelevance,
-    # OpenAI,
-    PartOfSpeech,
-)
 
 from dsp_interview_transcripts import PROJECT_DIR
+from dsp_interview_transcripts import logger
+
 
 # Set random seeds
 RANDOM_SEED = 42
 np.random.seed(RANDOM_SEED)
 random.seed(RANDOM_SEED)
 # PyTorch seed (used by SentenceTransformer)
-import torch
-
 torch.manual_seed(RANDOM_SEED)
 
 SENTENCE_MODEL = SentenceTransformer("all-MiniLM-L6-v2")
+DATA_PATH = PROJECT_DIR / "data/user_messages_min_len_9_w_sentiment.csv"
+MIN_CLUSTER_SIZE = 20
 
-INTERVIEW_SECTIONS = [f"interview_q_{i}" for i in range(-1, 10) if i != 4] # there were no hits for q4 for some reason
-DATA_SOURCES = ["user_messages",
-                "q_and_a",
-                ] + INTERVIEW_SECTIONS
+umap_model = UMAP(
+    n_neighbors=15,
+    n_components=50,
+    min_dist=0.1,
+    metric="cosine",
+    random_state=RANDOM_SEED,
+)
 
-MIN_CLUSTER_SIZES = [10, 50, 100]
+hdbscan_model = HDBSCAN(
+    min_cluster_size=MIN_CLUSTER_SIZE,
+    metric="euclidean",
+    cluster_selection_method="eom",
+    prediction_data=True,
+)
+
+vectorizer_model = TfidfVectorizer(
+    stop_words="english",
+    min_df=1,
+    max_df=0.85,
+    ngram_range=(1, 3),
+)
+
+
+def stratified_sample(group: pd.DataFrame, n: int = 10) -> pd.DataFrame:
+    """
+    Generate a stratified sample: get N responses stratified by
+    'question' and 'sentiment' values. The dataframe should already contain
+    just one topic ie one group.
+
+    Args:
+        group (pd.DataFrame): The DataFrame containing data for 1 topic to sample from.
+            Must contain 'question' and 'sentiment' columns.
+        n (int, optional): The number of samples to draw per 'question' and
+            'sentiment' combination. If there are fewer than `n` records in a
+            group, all available records are returned. Defaults to 10.
+
+    Returns:
+        pd.DataFrame: A new DataFrame containing the stratified sample.
+    """
+    # TODO: filter based on hdbscan probability
+    # TODO: find docs from centre of the cluster
+
+    # Calculate the sample size for each combination of 'question'
+    # and 'sentiment'
+    stratified_sample = group.groupby(["question", "sentiment"]).apply(
+        lambda x: x.sample(frac=min(1, n / len(group)), random_state=42)
+    )
+
+    # Reset the index to tidy up the resulting DataFrame
+    return stratified_sample.reset_index(drop=True)
+
 
 if __name__ == "__main__":
-    
-    for source in DATA_SOURCES:
-        for cluster_size in MIN_CLUSTER_SIZES:
-            if source in INTERVIEW_SECTIONS and cluster_size>10:
-                continue
-            
-            df = pd.read_csv(PROJECT_DIR / f"data/{source}.csv")
-            
-            if source=="user_messages" or source in INTERVIEW_SECTIONS:
-                text_col = "text_clean"
-            else:
-                text_col = "q_and_a"
-            
-            umap_model = UMAP(
-            n_neighbors=15,
-            n_components=50,
-            min_dist=0.1,
-            metric="cosine",
-            random_state=RANDOM_SEED,
-            )
+    user_messages = pd.read_csv(DATA_PATH)
 
-            hdbscan_model = HDBSCAN(
-                min_cluster_size=cluster_size,
-                min_samples=1,
-                metric="euclidean",
-                cluster_selection_method="eom",
-                prediction_data=True,
-            )
+    docs = user_messages["text_clean"].tolist()
+    logger.info("Embedding user messages...")
+    embeddings = SENTENCE_MODEL.encode(docs, show_progress_bar=True)
 
-            vectorizer_model = CountVectorizer(
-                stop_words="english",
-                min_df=1,
-                max_df=0.85,
-                ngram_range=(1, 3),
-            )
+    logger.info("Reducing dimensionality...")
+    umap_vectors = umap_model.fit_transform(embeddings)
 
-            # KeyBERT
-            keybert_model = KeyBERTInspired()
+    umap_df = pd.DataFrame(umap_vectors)
+    umap_df.columns = umap_df.columns.map(str)
+    user_messages_w_umap = pd.concat([user_messages.reset_index(), umap_df], axis=1)
 
-            # MMR
-            mmr_model = MaximalMarginalRelevance(diversity=0.3)
+    umap_vars = [f"{i}" for i in range(50)]
+    model_vars = umap_vars
 
-            # GPT-3.5
-            # openai_model = get_openai_model()
+    # Normalise the umap vectors
+    logger.info("Normalising UMAP vectors...")
+    scaler = StandardScaler()
+    df_normalized = scaler.fit_transform(user_messages_w_umap[model_vars])
 
-            # All representation models
-            representation_model = {
-                "KeyBERT": keybert_model,
-                # "OpenAI": openai_model,  # Uncomment if you will use OpenAI
-                "MMR": mmr_model,
-                # "POS": pos_model,
-            }
+    logger.info("Fitting HDBSCAN...")
+    clusters = hdbscan_model.fit_predict(df_normalized)
+    cluster_probabilities = hdbscan_model.probabilities_
+    user_messages_w_umap["label"] = clusters
+    user_messages_w_umap["probs"] = cluster_probabilities
+    logger.info(user_messages_w_umap["label"].value_counts())
 
-            topic_model = BERTopic(
-                # Pipeline models
-                embedding_model="sentence-transformers/all-MiniLM-L6-v2",
-                umap_model=umap_model,
-                hdbscan_model=hdbscan_model,
-                vectorizer_model=vectorizer_model,
-                representation_model=representation_model,
-                # Hyperparameters
-                top_n_words=10,
-                verbose=True,
-                calculate_probabilities=True,
-            )
-            
-            # Convert NaNs to empty strings
-            df[text_col] = df[text_col].astype(str)
-            docs = df[text_col].tolist()
-            embeddings = SENTENCE_MODEL.encode(docs, show_progress_bar=True)
+    # 2d embeddings for visualisation
+    logger.info("Creating 2D embeddings for visualisation...")
+    umap_2d = UMAP(random_state=RANDOM_SEED, n_components=2)
+    embeddings_2d = umap_2d.fit_transform(embeddings)
 
-            topics, probs = topic_model.fit_transform(docs, embeddings)
-            
-            # save topics
-            # save probs
-            # save topic model
-            topic_model.save(
-            PROJECT_DIR / f"outputs/topic_model_{source}_cluster_size_{cluster_size}",
-            serialization="pytorch",
-            save_ctfidf=True,
-            save_embedding_model=SENTENCE_MODEL,
-            )
+    # topic representations
+    logger.info("Creating tfidf representation...")
+    cluster_groups = user_messages_w_umap.groupby("label").agg({"text_clean": " ".join}).reset_index()
 
-            rep_docs = topic_model.get_representative_docs()
+    tfidf_matrix = vectorizer_model.fit_transform(cluster_groups["text_clean"].to_list())
 
-            umap_2d = UMAP(random_state=RANDOM_SEED, n_components=2)
-            embeddings_2d = umap_2d.fit_transform(embeddings)
+    feature_names = vectorizer_model.get_feature_names_out()
 
-            topic_lookup = topic_model.get_topic_info()[["Topic", "Name"]]
+    # Create a dictionary to hold top words for each cluster
+    top_words_per_cluster = defaultdict(list)
 
-            df_vis = pd.DataFrame(embeddings_2d, columns=["x", "y"])
-            df_vis["topic"] = topics
-            df_vis = df_vis.merge(topic_lookup, left_on="topic", right_on="Topic", how="left")
-            df_vis["doc"] = docs
+    # Number of top words you want to display per cluster
+    n_top_words = 10
 
-            df_vis = pd.merge(
-                    df[["uuid","conversation",text_col]],
-                    df_vis,
-                    left_on=text_col,
-                    right_on="doc",
-                    how="outer",
-                )
-            
-            df_vis.to_csv(PROJECT_DIR / f"outputs/{source}_cluster_size_{cluster_size}_vis.csv", index=False)
+    # Iterate over each cluster and get top words
+    for cluster_idx, tfidf_scores in enumerate(tfidf_matrix):
+        # Get indices of top n words within the cluster
+        top_word_indices = tfidf_scores.toarray()[0].argsort()[: -n_top_words - 1 : -1]
+
+        # Get the top words corresponding to the top indices
+        top_words = [feature_names[i] for i in top_word_indices]
+
+        # Append the words to the dictionary
+        top_words_per_cluster[cluster_groups.iloc[cluster_idx]["label"]] = ", ".join(top_words)
+
+    top_words_df = pd.DataFrame(list(top_words_per_cluster.items()), columns=["Cluster", "Top Words"])
+
+    user_messages_w_umap_topics = pd.merge(
+        user_messages_w_umap, top_words_df, left_on="label", right_on="Cluster", how="left"
+    )
+    user_messages_w_umap_topics["x"] = embeddings_2d[:, 0]
+    user_messages_w_umap_topics["y"] = embeddings_2d[:, 1]
+
+    user_messages_w_umap_topics.to_csv(
+        PROJECT_DIR / "outputs/user_messages_min_len_9_w_sentiment_topics.csv", index=False
+    )
+
+    # save most representative documents
+
+    filtered_df = user_messages_w_umap_topics[
+        (user_messages_w_umap_topics["probs"] >= 0.5) & (user_messages_w_umap_topics["Cluster"] != -1)
+    ]
+
+    # Group by 'Cluster' and apply the stratified sampling
+    sampled_texts = filtered_df.groupby("Cluster").apply(stratified_sample).reset_index(drop=True)
+
+    # Keep only the first 10 samples per cluster
+    sampled_texts = sampled_texts.groupby("Cluster").head(10)
+
+    sampled_texts[
+        ["Cluster", "Top Words", "text_clean", "sentiment", "question", "context", "conversation", "uuid", "probs"]
+    ].to_csv(PROJECT_DIR / "outputs/user_messages_min_len_9_w_sentiment_topics_representative_docs.csv", index=False)

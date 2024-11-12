@@ -1,14 +1,15 @@
 import logging
 import os
+
 from pathlib import Path
 from typing import Optional
-import yaml
-
-from pathlib import Path
 
 import dotenv
+import yaml
+
 
 dotenv.load_dotenv()
+
 
 def get_yaml_config(file_path: Path) -> Optional[dict]:
     """Fetch yaml config and return as dict if it exists."""
@@ -16,10 +17,11 @@ def get_yaml_config(file_path: Path) -> Optional[dict]:
         with open(file_path, "rt") as f:
             return yaml.load(f.read(), Loader=yaml.FullLoader)
 
+
 # Define project base directory
 PROJECT_DIR = Path(__file__).resolve().parents[1]
 
-# Define logger 
+# Define logger
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
