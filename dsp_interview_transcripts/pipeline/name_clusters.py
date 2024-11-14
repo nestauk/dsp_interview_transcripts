@@ -1,8 +1,5 @@
 """Use a llama model to give names and descriptions for the topics."""
-import json
-
 from typing import Dict
-from typing import List
 
 import pandas as pd
 
@@ -67,8 +64,8 @@ def name_topics(
     topic_info: pd.DataFrame,
     llm_chain,
     text_col: str = "text_clean",
-    top_words_col: str = "Top Words",
-    topic_label_col: str = "Cluster",
+    top_words_col: str = "Representation",
+    topic_label_col: str = "Topic",
 ) -> Dict[str, dict]:
     """
     Generate names and descriptions for each topic by invoking an LLM chain,
@@ -102,7 +99,7 @@ def name_topics(
             "Topic 2": {"name": "Product Quality", "description": "Documents focusing on product durability and performance."}
         }
     """
-    topics = topic_info["Cluster"].unique().tolist()
+    topics = topic_info[topic_label_col].unique().tolist()
 
     results = {}
 
@@ -130,20 +127,20 @@ if __name__ == "__main__":
 
     topic_info = pd.read_csv(INPUT_PATH)
 
-    topic_info = topic_info.groupby(["Cluster", "Top Words"])["text_clean"].apply(list).reset_index()
-    topic_info["Cluster"] = topic_info["Cluster"].astype(str)
+    topic_info = topic_info.groupby(["Topic", "Representation"])["text_clean"].apply(list).reset_index()
+    topic_info["Topic"] = topic_info["Topic"].astype(str)
 
     results = name_topics(
-        topic_info, llm_chain, text_col="text_clean", top_words_col="Top Words", topic_label_col="Cluster"
+        topic_info, llm_chain, text_col="text_clean", top_words_col="Representation", topic_label_col="Topic"
     )
 
     # Some complicated conditionals to check that what's in `results` can be parsed
-    topic_info[f"{model}_name"] = topic_info["Cluster"].map(
+    topic_info[f"{model}_name"] = topic_info["Topic"].map(
         lambda x: results[x]["name"]
         if x in results and isinstance(results[x], dict) and "name" in results[x]
         else None
     )
-    topic_info[f"{model}_description"] = topic_info["Cluster"].map(
+    topic_info[f"{model}_description"] = topic_info["Topic"].map(
         lambda x: results[x]["description"]
         if x in results and isinstance(results[x], dict) and "description" in results[x]
         else None
