@@ -104,3 +104,9 @@ def save_to_s3(bucket_name: str, output_var, output_file_dir: str):
         obj.put(Body=json.dumps(output_var, cls=CustomJsonEncoder))
 
     logger.info(f"Saved to s3://{bucket_name} + {output_file_dir} ...")
+
+
+def upload_file_to_s3(bucket_name: str, local_file: str, output_file_dir: str):
+    s3_client = boto3.client("s3")
+
+    s3_client.upload_file(local_file, bucket_name, output_file_dir)
