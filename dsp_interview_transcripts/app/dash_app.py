@@ -1,4 +1,5 @@
 import dash
+import dash_bootstrap_components as dbc
 import pandas as pd
 import plotly.express as px
 
@@ -35,84 +36,127 @@ data_viz = (
 
 transcripts = get_raw_transcripts_cleaned()
 
-app = dash.Dash(__name__)
+app = dash.Dash(external_stylesheets=[dbc.themes.BOOTSTRAP])
 
-app.layout = html.Div(
+# the style arguments for the sidebar. We use position:fixed and a fixed width
+SIDEBAR_STYLE = {
+    "position": "fixed",
+    "top": 0,
+    "left": 0,
+    "bottom": 0,
+    "width": "16rem",
+    "padding": "2rem 1rem",
+    "background-color": "#f8f9fa",
+}
+
+# the styles for the main content position it to the right of the sidebar and
+# add some padding.
+CONTENT_STYLE = {
+    "margin-left": "18rem",
+    "margin-right": "2rem",
+    "padding": "2rem 1rem",
+}
+
+sidebar = html.Div(
     [
-        dcc.Tabs(
+        html.H2("QualFML", className="display-5"),
+        html.Hr(),
+        dbc.Nav(
             [
-                # Placeholder for summary topic info
-                dcc.Tab(
-                    label="Topic Information",
-                    children=[
-                        html.Div(
-                            [
-                                html.Label("Select a Topic:"),
-                                dcc.Dropdown(
-                                    id="topic-dropdown",
-                                    options=[
-                                        {"label": topic, "value": topic}
-                                        for topic in data_viz["Name"]
-                                        .dropna()
-                                        .unique()  # This is necessary because Dash can't handle "None" for some reason
-                                    ],
-                                    placeholder="Choose a topic",
-                                ),
-                                html.Div(id="topic-info"),
-                            ],
-                            style={"padding": "20px"},
+                dbc.NavLink("Home", href="/", active="exact"),
+                dbc.NavLink("Information by topic", href="/page-1", active="exact"),
+                dbc.NavLink("User response mapping", href="/page-2", active="exact"),
+            ],
+            vertical=True,
+            pills=True,
+        ),
+    ],
+    style=SIDEBAR_STYLE,
+)
+
+content = html.Div(id="page-content", style=CONTENT_STYLE)
+
+app.layout = html.Div([dcc.Location(id="url"), sidebar, content])
+
+
+@app.callback(Output("page-content", "children"), [Input("url", "pathname")])
+def render_page_content(pathname):
+    if pathname == "/":
+        return html.P("Welcome!")
+    elif pathname == "/page-1":
+        # return html.P("This is the content of page 1. Yay!")
+        return html.Div(
+            [
+                html.Label("Select a Topic:"),
+                dcc.Dropdown(
+                    id="topic-dropdown",
+                    options=[
+                        {"label": topic, "value": topic}
+                        for topic in data_viz["Name"]
+                        .dropna()
+                        .unique()  # This is necessary because Dash can't handle "None" for some reason
+                    ],
+                    placeholder="Choose a topic",
+                ),
+                html.Div(id="topic-info"),
+            ],
+            style={"padding": "20px"},
+        )
+    elif pathname == "/page-2":
+        return html.Div(
+            [
+                # scatterplot
+                html.Div(
+                    [
+                        dcc.Graph(id="scatter-plot"),
+                    ],
+                    style={"width": "100%", "marginBottom": "20px"},
+                ),
+                # table
+                html.Div(
+                    [
+                        dash_table.DataTable(
+                            style_data={
+                                "whiteSpace": "normal",
+                                "height": "auto",
+                            },
+                            id="filtered-table",
+                            columns=[{"name": i, "id": i} for i in ["uuid", "role", "text"]],
+                            data=[],
+                            style_data_conditional=[],
+                            page_action="none",
+                            style_table={"height": "500px", "overflowY": "auto"},
                         )
                     ],
-                ),
-                # Tab 1: Main Scatter Plot and Table View
-                dcc.Tab(
-                    label="Scatter Plot & Table",
-                    children=[
-                        html.Div(
-                            [
-                                html.Div(
-                                    [
-                                        dcc.Graph(id="scatter-plot"),
-                                    ],
-                                    style={"width": "48%", "display": "inline-block"},
-                                ),
-                                html.Div(
-                                    [
-                                        dash_table.DataTable(
-                                            style_data={
-                                                "whiteSpace": "normal",
-                                                "height": "auto",
-                                            },
-                                            id="filtered-table",
-                                            columns=[{"name": i, "id": i} for i in ["uuid", "role", "text"]],
-                                            data=[],
-                                            style_data_conditional=[],
-                                            page_action="none",
-                                            style_table={"height": "500px", "overflowY": "auto"},
-                                        )
-                                    ],
-                                    style={"width": "48%", "display": "inline-block", "verticalAlign": "top"},
-                                ),
-                            ]
-                        ),
-                    ],
+                    style={
+                        "width": "100%",
+                    },
                 ),
             ]
         )
-    ]
-)
+    # If the user tries to reach a different page, return a 404 message
+    return html.Div(
+        [
+            html.H1("404: Not found", className="text-danger"),
+            html.Hr(),
+            html.P(f"The pathname {pathname} was not recognised..."),
+        ],
+        className="p-3 bg-light rounded-3",
+    )
 
 
 @app.callback(Output("topic-info", "children"), Input("topic-dropdown", "value"))
 def display_topic_info(selected_topic):
     if selected_topic:
         topic_data = data_viz[data_viz["Name"] == selected_topic]
-        topic_summary = f"Topic: {selected_topic}\nNumber of mentions: {len(topic_data)}"
+        n_users = topic_data["conversation"].nunique()
+        total_users = data_viz["conversation"].nunique()
 
         return html.Div(
             [
                 html.H4(f"Information about {selected_topic}"),
-                html.P(topic_summary),
+                html.P(f"Number of mentions: {len(topic_data)}"),
+                html.P(f"Number of users in this topic: {n_users} out of {total_users} total users"),
             ]
         )
     return "Select a topic to see more information."
