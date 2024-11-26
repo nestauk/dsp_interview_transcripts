@@ -9,16 +9,31 @@ from dash import dcc
 from dash import html
 
 from dsp_interview_transcripts import PROJECT_DIR
+from dsp_interview_transcripts import S3_BUCKET
+from dsp_interview_transcripts import config
+from dsp_interview_transcripts.getters.interim import get_data_w_topics
+from dsp_interview_transcripts.getters.interim import get_rep_docs
+from dsp_interview_transcripts.getters.interim import get_topic_names
+from dsp_interview_transcripts.getters.raw import get_raw_transcripts_cleaned
 
 
-# Load data
-data = pd.read_csv(PROJECT_DIR / "data/cleaned_data.csv")
-transcripts = pd.read_csv(PROJECT_DIR / "data/qual_af_transcripts.csv")
-transcripts = (
-    transcripts.assign(text=lambda x: x["text"].fillna(x["transcript"]))
-    # Length of text
-    .fillna({"text": ""}).assign(text_length=lambda x: x["text"].apply(len))
+rep_docs = get_rep_docs(production=True)
+data = get_data_w_topics(production=True)
+data_w_names = get_topic_names(production=True)
+
+topic_counts = pd.DataFrame(data["Cluster"].value_counts()).reset_index()
+topic_counts = topic_counts.rename(columns={"count": "N responses in topic"})
+
+data_w_names = data_w_names.rename(columns={"llama3.2_name": "Name", "llama3.2_description": "Description"})
+data_w_names = pd.merge(data_w_names, topic_counts, left_on="Cluster", right_on="Cluster", how="left")
+
+data_viz = (
+    data.merge(data_w_names[["Cluster", "Name", "Description"]], on="Cluster", how="left")
+    .assign(Name=lambda df: df["Name"].fillna("None"))
+    .assign(Description=lambda df: df["Description"].fillna("None"))
 )
+
+transcripts = get_raw_transcripts_cleaned()
 
 app = dash.Dash(__name__)
 
@@ -37,7 +52,7 @@ app.layout = html.Div(
                                     id="topic-dropdown",
                                     options=[
                                         {"label": topic, "value": topic}
-                                        for topic in data["Name"]
+                                        for topic in data_viz["Name"]
                                         .dropna()
                                         .unique()  # This is necessary because Dash can't handle "None" for some reason
                                     ],
@@ -91,7 +106,7 @@ app.layout = html.Div(
 @app.callback(Output("topic-info", "children"), Input("topic-dropdown", "value"))
 def display_topic_info(selected_topic):
     if selected_topic:
-        topic_data = data[data["Name"] == selected_topic]
+        topic_data = data_viz[data_viz["Name"] == selected_topic]
         topic_summary = f"Topic: {selected_topic}\nNumber of mentions: {len(topic_data)}"
 
         return html.Div(
@@ -107,7 +122,7 @@ def display_topic_info(selected_topic):
 @app.callback(Output("scatter-plot", "figure"), Input("scatter-plot", "id"))
 def update_scatter_plot(_):
     fig = px.scatter(
-        data,
+        data_viz,
         x="x",
         y="y",
         color="Name",
