@@ -99,6 +99,7 @@ ipython_config.py
 #   This is especially recommended for binary packages to ensure reproducibility, and is more
 #   commonly ignored for libraries.
 #   https://python-poetry.org/docs/basic-usage/#commit-your-poetrylock-file-to-version-control
+
 poetry.lock
 
 # pdm
@@ -171,3 +172,8 @@ outputs/*
 !/outputs/*.md
 # DS store in any folder
 **/.DS_Store
+
+# data files
+*.csv
+poetry.lock
+poetry.lock
