@@ -5,17 +5,18 @@ from typing import Union
 
 import altair as alt
 import pandas as pd
+import plac
 
 from dsp_interview_transcripts import PROJECT_DIR
+from dsp_interview_transcripts import S3_BUCKET
+from dsp_interview_transcripts import config
 from dsp_interview_transcripts import logger
+from dsp_interview_transcripts.getters.data_getters import save_to_s3
+from dsp_interview_transcripts.getters.data_getters import upload_file_to_s3
+from dsp_interview_transcripts.getters.interim import get_data_w_topics
+from dsp_interview_transcripts.getters.interim import get_rep_docs
+from dsp_interview_transcripts.getters.interim import get_topic_names
 
-
-OUTPUT_DIR = PROJECT_DIR / "outputs/final"
-OUTPUT_PATH_FULL_DATA = OUTPUT_DIR / "final_df.csv"
-OUTPUT_PATH_SUMMARY = OUTPUT_DIR / "summary_info.csv"
-
-# Create the output directory if it doesn't exist
-OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 opacity_condition = alt.condition(alt.datum.Name == "None", alt.value(0.1), alt.value(0.6))
 
@@ -75,12 +76,25 @@ def create_scatterplot(
     return fig
 
 
-if __name__ == "__main__":
-    rep_docs = pd.read_csv(PROJECT_DIR / "outputs/user_messages_min_len_9_w_sentiment_topics_representative_docs.csv")
-    data = pd.read_csv(PROJECT_DIR / "outputs/user_messages_min_len_9_w_sentiment_topics.csv")
-    data_w_names = pd.read_csv(
-        PROJECT_DIR / "outputs/user_messages_min_len_9_w_sentiment_topics_with_names_descriptions.csv"
-    )
+def main(production: bool = False):
+
+    if production:
+        OUTPUT_PATH_FULL_DATA = config["prod_paths"]["final_full_data_s3_path"]
+        OUTPUT_PATH_SUMMARY = config["prod_paths"]["final_summary_info_s3_path"]
+        LOCAL_OUTPUTS = PROJECT_DIR / "outputs/final"
+        S3_FIGURES = config["prod_paths"]["final_figures_s3_path"]
+    else:
+        OUTPUT_PATH_FULL_DATA = config["test_paths"]["final_full_data_s3_path"]
+        OUTPUT_PATH_SUMMARY = config["test_paths"]["final_summary_info_s3_path"]
+        LOCAL_OUTPUTS = PROJECT_DIR / "outputs/final/test"
+        S3_FIGURES = config["test_paths"]["final_figures_s3_path"]
+
+    # Create the local output directory if it doesn't exist
+    LOCAL_OUTPUTS.mkdir(parents=True, exist_ok=True)
+
+    rep_docs = get_rep_docs(production=production)
+    data = get_data_w_topics(production=production)
+    data_w_names = get_topic_names(production=production)
 
     topic_counts = pd.DataFrame(data["Cluster"].value_counts()).reset_index()
     topic_counts = topic_counts.rename(columns={"count": "N responses in topic"})
@@ -88,10 +102,25 @@ if __name__ == "__main__":
     data_w_names = data_w_names.rename(columns={"llama3.2_name": "Name", "llama3.2_description": "Description"})
     data_w_names = pd.merge(data_w_names, topic_counts, left_on="Cluster", right_on="Cluster", how="left")
 
-    data_w_names[["Name", "Description", "Top Words", "N responses in topic"]].to_csv(OUTPUT_PATH_SUMMARY, index=False)
-
     rep_docs = pd.merge(
         rep_docs, data_w_names[["Cluster", "Name", "Description", "N responses in topic"]], on="Cluster", how="left"
+    )
+    save_to_s3(
+        S3_BUCKET,
+        rep_docs[
+            [
+                "Name",
+                "Description",
+                "Top Words",
+                "N responses in topic",
+                "conversation",
+                "uuid",
+                "text_clean",
+                "context",
+                "sentiment",
+            ]
+        ],
+        OUTPUT_PATH_SUMMARY,
     )
 
     data_viz = (
@@ -133,10 +162,13 @@ if __name__ == "__main__":
             "Description": "Topic Description",
             "Top Words": "Topic Top Words",
         }
-    )
+    ).sort_values(["conversation", "timestamp"])
 
     logger.info("Saving output table...")
-    final_df.sort_values(["conversation", "timestamp"]).to_csv(OUTPUT_PATH_FULL_DATA, index=False)
+
+    save_to_s3(S3_BUCKET, final_df, OUTPUT_PATH_FULL_DATA)
+
+    # final_df.sort_values(["conversation", "timestamp"]).to_csv(OUTPUT_PATH_FULL_DATA, index=False)
 
     # Visualise clusters
     logger.info("Saving figures...")
@@ -145,12 +177,22 @@ if __name__ == "__main__":
         data_viz,
     )
     fig.save(PROJECT_DIR / "outputs/scatter_coloured_by_topic.html")
+    upload_file_to_s3(
+        S3_BUCKET,
+        f"{PROJECT_DIR}/outputs/scatter_coloured_by_topic.html",
+        f"{S3_FIGURES}/scatter_coloured_by_topic.html",
+    )
 
     fig_questions = create_scatterplot(
         data_viz=data_viz,
         color="question:N",
     )
     fig_questions.save(PROJECT_DIR / "outputs/scatter_coloured_by_question.html")
+    upload_file_to_s3(
+        S3_BUCKET,
+        f"{PROJECT_DIR}/outputs/scatter_coloured_by_question.html",
+        f"{S3_FIGURES}/scatter_coloured_by_question.html",
+    )
 
     fig_sentiment = create_scatterplot(
         data_viz=data_viz,
@@ -159,3 +201,12 @@ if __name__ == "__main__":
         range_=["red", "gray", "green"],
     )
     fig_sentiment.save(PROJECT_DIR / "outputs/scatter_coloured_by_sentiment.html")
+    upload_file_to_s3(
+        S3_BUCKET,
+        f"{PROJECT_DIR}/outputs/scatter_coloured_by_sentiment.html",
+        f"{S3_FIGURES}/scatter_coloured_by_sentiment.html",
+    )
+
+
+if __name__ == "__main__":
+    plac.call(main)
