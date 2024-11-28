@@ -53,8 +53,9 @@ layout = html.Div(
 )
 
 
-@dash.callback(Output("scatter-plot", "figure"), Input("scatter-plot", "id"))
-def update_scatter_plot(_):
+@dash.callback(Output("scatter-plot", "figure"), [Input("scatter-plot", "clickData")], prevent_initial_call=False)
+def update_scatter_plot(clickData):
+
     fig = px.scatter(
         data_viz,
         x="x",
@@ -63,7 +64,18 @@ def update_scatter_plot(_):
         hover_data=["conversation", "text_clean"],
         custom_data=["conversation", "text_clean", "uuid"],
     )
-    fig.update_layout(transition_duration=500)
+    # fig.update_layout(transition_duration=500)
+
+    # Code that lets you do something if a point is clicked
+    # if clickData:
+    #     print(clickData)
+    #     fig.add_scatter(
+    #         x=[clickData["points"][0]["x"]],
+    #         y=[clickData["points"][0]["y"]],
+    #         mode="markers",
+    #         marker=dict(size=20, color="Yellow"),
+    #         name="Selected Point",
+    #     )
     return fig
 
 

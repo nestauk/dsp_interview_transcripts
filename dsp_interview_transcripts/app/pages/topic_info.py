@@ -1,10 +1,15 @@
+import base64
+import io
+
 import dash
+import matplotlib.pyplot as plt
 
 from dash import Input
 from dash import Output
 from dash import dcc
 from dash import html
 from data import data_viz
+from wordcloud import WordCloud
 
 
 dash.register_page(__name__, path="/topic_info")
@@ -28,7 +33,7 @@ CONTENT_STYLE = {
 
 layout = html.Div(
     [
-        html.Label("Select a Topic:"),
+        html.Label("Topic info"),
         dcc.Dropdown(
             id="topic-dropdown",
             options=[{"label": topic, "value": topic} for topic in data_viz["Name"].dropna().unique()],
