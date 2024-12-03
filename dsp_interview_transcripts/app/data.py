@@ -22,4 +22,9 @@ data_viz = (
     .assign(Description=lambda df: df["Description"].fillna("None"))
 )
 
+names = data_viz["Name"].unique().tolist()
+
+# 0.2 for the noise cluster, otherwise 0.8
+data_viz["opacity"] = data_viz["Name"].apply(lambda Name: 0.8 if Name in names[1:] else 0.2)
+
 transcripts = get_raw_transcripts_cleaned(production=True)
