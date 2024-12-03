@@ -1,5 +1,6 @@
 import dash
 import plotly.express as px
+import plotly.graph_objects as go
 
 from dash import Input
 from dash import Output
@@ -39,11 +40,16 @@ layout = html.Div(
                 dash_table.DataTable(
                     style_data={"whiteSpace": "normal", "height": "auto"},
                     id="filtered-table",
-                    columns=[{"name": i, "id": i} for i in ["uuid", "role", "text"]],
+                    columns=[{"name": i, "id": i} for i in ["uuid", "role", "text_clean"]],
                     data=[],
                     style_data_conditional=[],
                     page_action="none",
                     style_table={"height": "500px", "overflowY": "auto"},
+                    style_cell={
+                        "fontFamily": "Century Gothic",  # Set font to Century Gothic
+                        "fontSize": "14px",  # Optional: set font size
+                        "textAlign": "left",  # Optional: align text
+                    },
                 )
             ],
             style={"width": "100%"},
@@ -64,18 +70,26 @@ def update_scatter_plot(clickData):
         hover_data=["conversation", "text_clean"],
         custom_data=["conversation", "text_clean", "uuid"],
     )
-    # fig.update_layout(transition_duration=500)
 
-    # Code that lets you do something if a point is clicked
-    # if clickData:
-    #     print(clickData)
-    #     fig.add_scatter(
-    #         x=[clickData["points"][0]["x"]],
-    #         y=[clickData["points"][0]["y"]],
-    #         mode="markers",
-    #         marker=dict(size=20, color="Yellow"),
-    #         name="Selected Point",
-    #     )
+    # Code to highlight the point that's been clicked
+    if clickData:
+
+        print(clickData)
+        fig.add_trace(
+            go.Scatter(
+                x=[clickData["points"][0]["x"]],
+                y=[clickData["points"][0]["y"]],
+                mode="markers",
+                marker=dict(size=20, color="Yellow"),
+                showlegend=False,
+            ),
+        )
+
+    fig.update_layout(
+        xaxis=dict(showticklabels=False, title_text=""),  # Hide x-axis ticks and title
+        yaxis=dict(showticklabels=False, title_text=""),  # Hide y-axis ticks and title
+    )
+
     return fig
 
 
@@ -88,7 +102,7 @@ def display_click_data(clickData):
         selected_uuid = clickData["points"][0]["customdata"][2]
         conversation_id = clickData["points"][0]["customdata"][0]
         filtered_data = transcripts[transcripts["conversation"] == conversation_id]
-        table_data = filtered_data[["uuid", "role", "text"]].to_dict("records")
+        table_data = filtered_data[["uuid", "role", "text_clean"]].to_dict("records")
         style_data_conditional = [
             {
                 "if": {"filter_query": f'{{uuid}} = "{selected_uuid}"'},

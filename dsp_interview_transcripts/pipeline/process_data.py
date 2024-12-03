@@ -255,8 +255,10 @@ def main(production: bool = False):
 
     MIN_LEN = config["min_length"]
     if production:
+        CLEAN_PATH = config["prod_paths"]["raw_cleaned_s3_path"]
         DATA_OUT_PATH = config["prod_paths"]["interim_processed_data_s3_path"]
     else:
+        CLEAN_PATH = config["test_paths"]["raw_cleaned_s3_path"]
         DATA_OUT_PATH = config["test_paths"]["interim_processed_data_s3_path"]
     DATA_OUT_PATH = DATA_OUT_PATH.format(MIN_LEN=MIN_LEN)
 
@@ -276,6 +278,8 @@ def main(production: bool = False):
         # Group together consecutive responses by the same role
         .pipe(concatenate_consecutive_roles)
     )
+
+    save_to_s3(S3_BUCKET, interviews_cleaned_df, CLEAN_PATH)
 
     questions_df = pd.DataFrame(enumerate(QUESTIONS), columns=["q_number", "question"])
 

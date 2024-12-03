@@ -22,4 +22,4 @@ data_viz = (
     .assign(Description=lambda df: df["Description"].fillna("None"))
 )
 
-transcripts = get_raw_transcripts_cleaned()
+transcripts = get_raw_transcripts_cleaned(production=True)
