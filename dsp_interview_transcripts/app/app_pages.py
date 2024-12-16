@@ -14,7 +14,9 @@ load_figure_template("BOOTSTRAP")
 from pages import home
 from pages import overview
 from pages import scatterplot
-from pages import topic_info
+
+
+# from pages import topic_info
 
 
 # Sidebar layout
@@ -42,7 +44,7 @@ sidebar = html.Div(
             [
                 dbc.NavLink("Home", href="/", active="exact"),
                 dbc.NavLink("Topic overview", href="/overview", active="exact"),
-                dbc.NavLink("Information by topic", href="/topic_info", active="exact"),
+                # dbc.NavLink("Information by topic", href="/topic_info", active="exact"),
                 dbc.NavLink("User response mapping", href="/scatterplot", active="exact"),
             ],
             vertical=True,

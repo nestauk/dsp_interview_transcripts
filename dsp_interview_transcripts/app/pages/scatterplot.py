@@ -100,6 +100,8 @@ layout = html.Div(
             ],
             style={"width": "100%"},
         ),
+        # Hidden div for storing the index to scroll to
+        html.Div(id="row-index", style={"display": "none"}),
     ],
     style=CONTENT_STYLE,
 )
@@ -154,6 +156,7 @@ def update_scatter_plot(clickData):
         Output("name-display", "children"),
         Output("description-display", "children"),
         Output("text-clean-display", "children"),
+        Output("row-index", "children"),
     ],
     Input("scatter-plot", "clickData"),
 )
@@ -164,6 +167,7 @@ def display_click_data(clickData):
 
         filtered_data = transcripts[transcripts["conversation"] == conversation_id]
         table_data = filtered_data[["uuid", "role", "text_clean"]].to_dict("records")
+        selected_index = filtered_data[filtered_data["uuid"] == selected_uuid].index[0]
         style_data_conditional = [
             {
                 "if": {"filter_query": f'{{uuid}} = "{selected_uuid}"'},
@@ -177,6 +181,6 @@ def display_click_data(clickData):
         description = f"Description: {selected_point.get('Description', 'N/A')}"
         text_clean = f"Text: {selected_point['text_clean']}"
 
-        return table_data, style_data_conditional, name, description, text_clean
+        return table_data, style_data_conditional, name, description, text_clean, selected_index
 
-    return [], [], "Name: N/A", "Description: N/A", "Text: N/A"
+    return [], [], "Name: N/A", "Description: N/A", "Text: N/A", None
