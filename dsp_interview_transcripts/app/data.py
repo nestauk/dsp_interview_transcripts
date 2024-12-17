@@ -1,15 +1,24 @@
+# from dsp_interview_transcripts.getters.final import get_summary_table
+# from dsp_interview_transcripts.getters.interim import get_data_w_topics
+# from dsp_interview_transcripts.getters.interim import get_rep_docs
+# from dsp_interview_transcripts.getters.interim import get_topic_names
+# from dsp_interview_transcripts.getters.raw import get_raw_transcripts_cleaned
+import os
+
 import pandas as pd
 
-from dsp_interview_transcripts.getters.final import get_summary_table
-from dsp_interview_transcripts.getters.interim import get_data_w_topics
-from dsp_interview_transcripts.getters.interim import get_rep_docs
-from dsp_interview_transcripts.getters.interim import get_topic_names
-from dsp_interview_transcripts.getters.raw import get_raw_transcripts_cleaned
+from dotenv import load_dotenv
 
 
-rep_docs = get_rep_docs(production=True)
-data = get_data_w_topics(production=True)
-data_w_names = get_topic_names(production=True)
+load_dotenv()
+
+S3_BUCKET = os.environ.get("S3_BUCKET")
+
+rep_docs = pd.read_csv(f"s3://{S3_BUCKET}/interim/user_messages_min_len_9_w_sentiment_topics_representative_docs.csv")
+data = pd.read_csv(f"s3://{S3_BUCKET}/interim/user_messages_min_len_9_w_sentiment_topics.csv")
+data_w_names = pd.read_csv(
+    f"s3://{S3_BUCKET}/interim/user_messages_min_len_9_w_sentiment_topics_with_names_descriptions.csv"
+)
 
 topic_counts = pd.DataFrame(data["Cluster"].value_counts()).reset_index()
 topic_counts = topic_counts.rename(columns={"count": "N responses in topic"})
@@ -28,7 +37,9 @@ names = data_viz["Name"].unique().tolist()
 # 0.2 for the noise cluster, otherwise 0.8
 data_viz["opacity"] = data_viz["Name"].apply(lambda Name: 0.8 if Name in names[1:] else 0.2)
 
-transcripts = get_raw_transcripts_cleaned(production=True)
+transcripts = pd.read_csv(f"s3://{S3_BUCKET}/raw/qual_af_transcripts_cleaned.csv")
 
-summary_info = get_summary_table()[["Name", "Description", "Top Words", "N responses in topic"]].drop_duplicates()
+summary_info = pd.read_csv(f"s3://{S3_BUCKET}/test/final/summary_info.csv")[
+    ["Name", "Description", "Top Words", "N responses in topic"]
+].drop_duplicates()
 #    'conversation', 'uuid', 'context','text_clean']]
