@@ -1,5 +1,6 @@
 import pandas as pd
 
+from dsp_interview_transcripts.getters.final import get_summary_table
 from dsp_interview_transcripts.getters.interim import get_data_w_topics
 from dsp_interview_transcripts.getters.interim import get_rep_docs
 from dsp_interview_transcripts.getters.interim import get_topic_names
@@ -28,3 +29,6 @@ names = data_viz["Name"].unique().tolist()
 data_viz["opacity"] = data_viz["Name"].apply(lambda Name: 0.8 if Name in names[1:] else 0.2)
 
 transcripts = get_raw_transcripts_cleaned(production=True)
+
+summary_info = get_summary_table()[["Name", "Description", "Top Words", "N responses in topic"]].drop_duplicates()
+#    'conversation', 'uuid', 'context','text_clean']]

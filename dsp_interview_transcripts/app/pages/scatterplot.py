@@ -69,6 +69,7 @@ layout = html.Div(
                         html.H4("Selected Point Info"),
                         html.Div(id="name-display", style={"marginBottom": "10px"}),
                         html.Div(id="description-display", style={"marginBottom": "10px"}),
+                        html.Div(id="conversation-display", style={"marginBottom": "10px"}),
                         html.Div(id="text-clean-display", style={"marginBottom": "10px"}),
                     ],
                 ),
@@ -127,6 +128,9 @@ def update_scatter_plot(clickData):
         trace_opacity = data_viz[data_viz["Name"] == trace_name]["opacity"].values
         trace.update(marker=dict(opacity=trace_opacity))
 
+    # Update hovertemplate to show only 'text_clean'
+    fig.update_traces(hovertemplate="<b>%{customdata[1]}</b><extra></extra>")
+
     # Code to highlight the point that's been clicked
     if clickData:
 
@@ -144,6 +148,7 @@ def update_scatter_plot(clickData):
         uirevision="scatter-plot",  # Ensure that the zoom level is preserved after you've clicked a point
         xaxis=dict(showticklabels=False, title_text=""),  # Hide x-axis ticks and title
         yaxis=dict(showticklabels=False, title_text=""),  # Hide y-axis ticks and title
+        legend_title_text="",  # Hide legend title
     )
 
     return fig
@@ -155,6 +160,7 @@ def update_scatter_plot(clickData):
         Output("filtered-table", "style_data_conditional"),
         Output("name-display", "children"),
         Output("description-display", "children"),
+        Output("conversation-display", "children"),
         Output("text-clean-display", "children"),
         Output("row-index", "children"),
     ],
@@ -179,8 +185,9 @@ def display_click_data(clickData):
         selected_point = data_viz[data_viz["uuid"] == selected_uuid].iloc[0]
         name = f"Name: {selected_point['Name']}"
         description = f"Description: {selected_point.get('Description', 'N/A')}"
+        conversation = f"Conversation: {conversation_id}"
         text_clean = f"Text: {selected_point['text_clean']}"
 
-        return table_data, style_data_conditional, name, description, text_clean, selected_index
+        return table_data, style_data_conditional, name, description, conversation, text_clean, selected_index
 
-    return [], [], "Name: N/A", "Description: N/A", "Text: N/A", None
+    return [], [], "Name: N/A", "Description: N/A", "Conversation: N/A", "Text: N/A", None

@@ -1,22 +1,28 @@
+import os
+
 import dash
+import dash_auth
 import dash_bootstrap_components as dbc
 
 from dash import dcc
 from dash import html
 from dash_bootstrap_templates import load_figure_template
+from dotenv import load_dotenv
 
+
+load_dotenv()
 
 # Initialize Dash app
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP], use_pages=True)
+
+auth = dash_auth.BasicAuth(app, {os.environ.get("VALID_USERNAME"): os.environ.get("VALID_PASSWORD")})
+
 load_figure_template("BOOTSTRAP")
 
 # Importing all the pages - this has to go AFTER app is initialised
 from pages import home
 from pages import overview
 from pages import scatterplot
-
-
-# from pages import topic_info
 
 
 # Sidebar layout
