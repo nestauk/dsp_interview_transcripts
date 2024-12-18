@@ -123,7 +123,7 @@ def main(production: bool = False):
     umap_2d = UMAP(random_state=RANDOM_SEED, n_components=2)
     embeddings_2d = umap_2d.fit_transform(embeddings)
 
-    topic_lookup = summary_info[["Topic", "Name"]]
+    topic_lookup = summary_info[["Topic", "Name", "Representation"]]
 
     df_vis = pd.DataFrame(embeddings_2d, columns=["x", "y"])
     df_vis["topic"] = topics
@@ -146,14 +146,6 @@ def main(production: bool = False):
 
     df_vis["norm_embedding"] = list(normalized_embeddings)
 
-    topic_lookup = topic_model.get_topic_info()[["Topic", "Representation"]]
-
-    df_vis = (
-        df_vis.merge(topic_lookup, left_on="topic", right_on="Topic", how="left")
-        .drop(columns=["Topic_y"])
-        .rename(columns={"Topic_x": "Topic"})
-    )
-
     logger.info("Saving data...")
     save_to_s3(S3_BUCKET, df_vis, OUT_PATH_FULL_DATA)
 
@@ -170,7 +162,17 @@ def main(production: bool = False):
     save_to_s3(
         S3_BUCKET,
         repr_docs[
-            ["Topic", "Representation", "text_clean", "sentiment", "question", "context", "conversation", "uuid"]
+            [
+                "Topic",
+                "Name",
+                "Representation",
+                "text_clean",
+                "sentiment",
+                "question",
+                "context",
+                "conversation",
+                "uuid",
+            ]
         ],
         OUT_PATH_REP_DOCS,
     )

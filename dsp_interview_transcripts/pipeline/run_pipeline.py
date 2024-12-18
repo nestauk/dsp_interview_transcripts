@@ -34,9 +34,9 @@ def main(production: bool = False):
     logger.info("Running prep_output_tables.py...")
     subprocess.run(f"python {script_parent / 'prep_output_tables.py'} {mode_arg}", shell=True)
 
-    # Top down approach
-    logger.info("Running top_down_analysis.py...")
-    subprocess.run(f"python {script_parent / 'top_down_analysis.py'}", shell=True)
+    # # Top down approach
+    # logger.info("Running top_down_analysis.py...")
+    # subprocess.run(f"python {script_parent / 'top_down_analysis.py'}", shell=True)
 
 
 if __name__ == "__main__":
