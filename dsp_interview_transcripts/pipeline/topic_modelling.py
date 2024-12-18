@@ -81,9 +81,7 @@ def main(production: bool = False):
     # All representation models
     representation_model = {
         "KeyBERT": keybert_model,
-        # "OpenAI": openai_model,  # Uncomment if you will use OpenAI
         "MMR": mmr_model,
-        # "POS": pos_model,
     }
 
     topic_model = BERTopic(
@@ -131,7 +129,7 @@ def main(production: bool = False):
     df_vis["doc"] = docs
 
     df_vis = pd.merge(
-        user_messages[["uuid", "conversation", "text_clean", "sentiment", "question", "context"]],
+        user_messages[["uuid", "conversation", "timestamp", "text_clean", "sentiment", "question", "context"]],
         df_vis,
         left_on="text_clean",
         right_on="doc",

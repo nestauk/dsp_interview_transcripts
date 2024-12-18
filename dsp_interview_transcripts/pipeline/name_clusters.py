@@ -136,7 +136,7 @@ def main(production: bool = False):
 
     topic_info = get_rep_docs(production=production)
 
-    topic_info = topic_info.groupby(["Topic", "Representation"])["text_clean"].apply(list).reset_index()
+    topic_info = topic_info.groupby(["Topic", "Name", "Representation"])["text_clean"].apply(list).reset_index()
     topic_info["Topic"] = topic_info["Topic"].astype(str)
 
     results = name_topics(
