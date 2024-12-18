@@ -2,6 +2,7 @@ import random
 
 import numpy as np
 import pandas as pd
+import plac
 import torch
 
 from bertopic import BERTopic
@@ -15,7 +16,11 @@ from sklearn.preprocessing import normalize
 from umap import UMAP
 
 from dsp_interview_transcripts import PROJECT_DIR
+from dsp_interview_transcripts import S3_BUCKET
+from dsp_interview_transcripts import config
 from dsp_interview_transcripts import logger
+from dsp_interview_transcripts.getters.data_getters import save_to_s3
+from dsp_interview_transcripts.getters.interim import get_cleaned_data
 from dsp_interview_transcripts.utils.repr_docs import *
 
 
@@ -27,9 +32,21 @@ torch.manual_seed(RANDOM_SEED)
 
 SENTENCE_MODEL = SentenceTransformer("all-MiniLM-L6-v2")
 
-DATA_PATH = PROJECT_DIR / "data/user_messages_min_len_9_w_sentiment.csv"
+MIN_CLUSTER_SIZE = 20
 
-if __name__ == "__main__":
+
+def main(production: bool = False):
+
+    MIN_LEN = config["min_length"]
+
+    if production:
+        OUT_PATH_FULL_DATA = config["prod_paths"]["interim_data_w_topics_s3_path"].format(MIN_LEN=MIN_LEN)
+        OUT_PATH_REP_DOCS = config["prod_paths"]["interim_representative_docs_s3_path"].format(MIN_LEN=MIN_LEN)
+    else:
+        OUT_PATH_FULL_DATA = config["test_paths"]["interim_data_w_topics_s3_path"].format(MIN_LEN=MIN_LEN)
+        OUT_PATH_REP_DOCS = config["test_paths"]["interim_representative_docs_s3_path"].format(MIN_LEN=MIN_LEN)
+
+    user_messages = get_cleaned_data(production=production)
 
     empty_reduction_model = BaseDimensionalityReduction()
 
@@ -42,7 +59,7 @@ if __name__ == "__main__":
     )
 
     hdbscan_model = HDBSCAN(
-        min_cluster_size=20,
+        min_cluster_size=MIN_CLUSTER_SIZE,
         metric="euclidean",
         cluster_selection_method="eom",
         prediction_data=True,
@@ -82,24 +99,31 @@ if __name__ == "__main__":
         calculate_probabilities=True,
     )
 
-    df = pd.read_csv(DATA_PATH)
-
-    df["text_clean"] = df["text_clean"].astype(str)
-    docs = df["text_clean"].tolist()
+    docs = user_messages["text_clean"].tolist()
+    logger.info("Embedding user messages...")
     embeddings = SENTENCE_MODEL.encode(docs, show_progress_bar=True)
 
     embeddings_50d = umap_model.fit_transform(embeddings)
 
     normalized_embeddings = normalize(embeddings_50d, norm="l2")
 
-    topics, probs = topic_model.fit_transform(docs, normalized_embeddings)
+    topics, _ = topic_model.fit_transform(docs, normalized_embeddings)
 
-    rep_docs = topic_model.get_representative_docs()
+    summary_info = topic_model.get_topic_info()
+    if production:
+        bertopic_summary_outpath = "interim/bertopic_topic_info.csv"
+    else:
+        bertopic_summary_outpath = "test/interim/bertopic_topic_info.csv"
+    save_to_s3(
+        S3_BUCKET,
+        summary_info,
+        bertopic_summary_outpath,
+    )
 
     umap_2d = UMAP(random_state=RANDOM_SEED, n_components=2)
     embeddings_2d = umap_2d.fit_transform(embeddings)
 
-    topic_lookup = topic_model.get_topic_info()[["Topic", "Name"]]
+    topic_lookup = summary_info[["Topic", "Name"]]
 
     df_vis = pd.DataFrame(embeddings_2d, columns=["x", "y"])
     df_vis["topic"] = topics
@@ -107,7 +131,7 @@ if __name__ == "__main__":
     df_vis["doc"] = docs
 
     df_vis = pd.merge(
-        df[["uuid", "conversation", "text_clean", "sentiment", "question", "context"]],
+        user_messages[["uuid", "conversation", "text_clean", "sentiment", "question", "context"]],
         df_vis,
         left_on="text_clean",
         right_on="doc",
@@ -130,18 +154,27 @@ if __name__ == "__main__":
         .rename(columns={"Topic_x": "Topic"})
     )
 
-    # save df_vis
-    df_vis.to_csv(PROJECT_DIR / "outputs/user_messages_min_len_9_w_sentiment_topics.csv", index=False)
+    logger.info("Saving data...")
+    save_to_s3(S3_BUCKET, df_vis, OUT_PATH_FULL_DATA)
 
     # save most representative documents
     df_vis_no_noise = df_vis[df_vis["topic"] != -1]
-    radius_distributions, clustered_data = get_min_radius(df_vis_no_noise, k_neighbours=10)
+    _, clustered_data = get_min_radius(df_vis_no_noise, k_neighbours=10)
 
     clustered_data["quartile"] = clustered_data.groupby("topic")["radius_10"].transform(
         lambda x: pd.qcut(x, q=4, labels=["1st", "2nd", "3rd", "greater than 3rd"])
     )
     repr_docs = extract_repr_docs(clustered_data)
 
-    repr_docs[
-        ["Topic", "Representation", "text_clean", "sentiment", "question", "context", "conversation", "uuid"]
-    ].to_csv(PROJECT_DIR / "outputs/user_messages_min_len_9_w_sentiment_topics_representative_docs.csv", index=False)
+    logger.info("Saving data...")
+    save_to_s3(
+        S3_BUCKET,
+        repr_docs[
+            ["Topic", "Representation", "text_clean", "sentiment", "question", "context", "conversation", "uuid"]
+        ],
+        OUT_PATH_REP_DOCS,
+    )
+
+
+if __name__ == "__main__":
+    plac.call(main)

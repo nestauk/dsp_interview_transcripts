@@ -2,6 +2,7 @@
 from typing import Dict
 
 import pandas as pd
+import plac
 
 from langchain.prompts import PromptTemplate
 from langchain_community.chat_models import ChatOllama
@@ -10,7 +11,11 @@ from pydantic import BaseModel
 from pydantic import Field
 
 from dsp_interview_transcripts import PROJECT_DIR
+from dsp_interview_transcripts import S3_BUCKET
+from dsp_interview_transcripts import config
 from dsp_interview_transcripts import logger
+from dsp_interview_transcripts.getters.data_getters import save_to_s3
+from dsp_interview_transcripts.getters.interim import get_rep_docs
 
 
 class NameDescription(BaseModel):
@@ -56,8 +61,6 @@ model = "llama3.2"
 ollama_model = ChatOllama(model=model, temperature=0)
 
 llm_chain = final_prompt | ollama_model | parser
-
-INPUT_PATH = PROJECT_DIR / "outputs/user_messages_min_len_9_w_sentiment_topics_representative_docs.csv"
 
 
 def name_topics(
@@ -123,9 +126,15 @@ def name_topics(
     return results
 
 
-if __name__ == "__main__":
+def main(production: bool = False):
 
-    topic_info = pd.read_csv(INPUT_PATH)
+    MIN_LEN = config["min_length"]
+    if production:
+        OUT_PATH = config["prod_paths"]["interim_w_names_s3_path"].format(MIN_LEN=MIN_LEN)
+    else:
+        OUT_PATH = config["test_paths"]["interim_w_names_s3_path"].format(MIN_LEN=MIN_LEN)
+
+    topic_info = get_rep_docs(production=production)
 
     topic_info = topic_info.groupby(["Topic", "Representation"])["text_clean"].apply(list).reset_index()
     topic_info["Topic"] = topic_info["Topic"].astype(str)
@@ -147,7 +156,9 @@ if __name__ == "__main__":
     )
 
     logger.info("Saving output...")
-    topic_info.to_csv(
-        PROJECT_DIR / "outputs/user_messages_min_len_9_w_sentiment_topics_with_names_descriptions.csv", index=False
-    )
+    save_to_s3(S3_BUCKET, topic_info, OUT_PATH)
     logger.info("Done!")
+
+
+if __name__ == "__main__":
+    plac.call(main)

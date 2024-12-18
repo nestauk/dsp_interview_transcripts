@@ -21,6 +21,8 @@ def get_yaml_config(file_path: Path) -> Optional[dict]:
 # Define project base directory
 PROJECT_DIR = Path(__file__).resolve().parents[1]
 
+S3_BUCKET = "dsp-qualfml"
+
 # Define logger
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
