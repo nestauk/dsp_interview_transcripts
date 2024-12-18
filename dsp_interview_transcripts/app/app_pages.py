@@ -64,4 +64,8 @@ sidebar = html.Div(
 app.layout = html.Div([dcc.Location(id="url"), sidebar, dash.page_container])
 
 if __name__ == "__main__":
-    app.run_server(debug=True, host="0.0.0.0", port=8050)
+    app.run_server(
+        # debug=True, # comment out when deploying to production
+        host="0.0.0.0",
+        port=8050,  # comment this part out when testing on your local machine & on public wifi
+    )

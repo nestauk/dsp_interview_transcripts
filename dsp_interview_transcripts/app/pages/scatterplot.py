@@ -49,8 +49,17 @@ NESTA_COLOURS = [
 
 layout = html.Div(
     [
-        # Scatterplot
-        # html.Div([dcc.Graph(id="scatter-plot")], style={"width": "100%", "marginBottom": "20px"}),
+        html.Div(
+            children=[
+                html.P(
+                    "This tab contains an interactive visualisation to help you explore user responses within each topic. Each user response is shown as a point."
+                ),
+                html.P(
+                    "Click a point on the plot to find out more information about it. On the left, you will see information about the topic it is in, "
+                    "the ID of the conversation it occurred in, and the response itself."
+                ),
+            ]
+        ),
         # First row: Information Panel and Scatterplot
         html.Div(
             [
@@ -80,6 +89,11 @@ layout = html.Div(
                 ),
             ],
             style={"width": "100%", "marginBottom": "20px"},
+        ),
+        html.Div(
+            children=[
+                html.P("When you click a point on the plot, this table will show the full text of that conversation."),
+            ]
         ),
         # DataTable
         html.Div(
@@ -183,11 +197,11 @@ def display_click_data(clickData):
         ]
 
         selected_point = data_viz[data_viz["uuid"] == selected_uuid].iloc[0]
-        name = f"Name: {selected_point['Name']}"
-        description = f"Description: {selected_point.get('Description', 'N/A')}"
-        conversation = f"Conversation: {conversation_id}"
-        text_clean = f"Text: {selected_point['text_clean']}"
+        name = f"Topic name: {selected_point['Name']}"
+        description = f"Topic description: {selected_point.get('Description', 'N/A')}"
+        conversation = f"Conversation ID: {conversation_id}"
+        text_clean = f"User response: {selected_point['text_clean']}"
 
         return table_data, style_data_conditional, name, description, conversation, text_clean, selected_index
 
-    return [], [], "Name: N/A", "Description: N/A", "Conversation: N/A", "Text: N/A", None
+    return [], [], "Topic name: N/A", "Topic description: N/A", "Conversation ID: N/A", "User response: N/A", None
