@@ -1,0 +1,206 @@
+---
+title: "BIT France analysis"
+# Changing the background colour for the title block
+title-block-banner: "#0000FF"
+# Changing the text colour for the title block
+title-block-banner-color: "#FFFFFF"
+# Do we want to add a table of contents: true/false
+toc: true
+# Where do we want the table of contents to be located: left/right/body
+toc-location: left
+# Do we want the sections numbered: true/false
+number-sections: true
+format:
+  html:
+    page-layout: full
+    code-fold: true
+jupyter: python3
+---
+
+# Introduction
+
+We have prepared a preliminary analysis of the interview transcripts. Below you will find a section explaining our methods, and then a section presenting some visual representations of the data.
+
+Any questions, please do not hesitate to contact [rosie.oxbury@nesta.org.uk](@mailto:rosie.oxbury@nesta.org.uk) or [karlis.kanders@nesta.org.uk](@mailto:karlis.kanders@nesta.org.uk).
+
+# Methods
+
+## Text preprocessing
+* We avoided manipulating the text beyond converting `.docx` files to `.txt`.
+* The topic modelling is currently based **only on sections of the interview spoken by the informant**, not the interviewer.
+* For the topic modelling, each "turn" in conversation (i.e. each utterance) is treated as a single data point.
+* Currently, **turns shorter than 9 words are excluded from the topic modelling**. This is because we have found that such short utterances tend to "confuse" the model and result in topics that are harder to interpret.
+
+## Topic modelling
+We used the popular library [BERTopic](https://maartengr.github.io/BERTopic/api/bertopic.html#bertopic._bertopic.BERTopic.get_representative_docs) to extract topics from the data. This method works by:
+
+* Embedding the text data - this means translating the text into a numerical representation (vectors) that a computer can understand.
+* Applying a clustering algorithm to the vectors. This works to group together similar vectors (and therefore similar text) into clusters.
+* Extracting the key words that distinguish each cluster from the others.
+
+## Scope of topic modelling
+For this first iteration, we created one topic model across all the data (rather than individual models for the 4 types of informants). In the next iteration we can create a separate model for each group of informants if that is likely to be useful. Below, we have provided a plot that shows a breakdown of which topics were mentioned relatively more often in each group of informants.
+
+## Topic names and descriptions
+We then also used a LLM (llama3.2) to give each cluster a name and description. This part is somewhat experimental. We have shown the resulting names and descriptions as "AI-generated name" and "AI-generated description" in the table below, but in the plots we use the keyword-based topic names that come from the topic model.
+
+# Results
+
+```{python}
+#| echo: false
+
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+
+NESTA_COLOURS = [
+    "#0000FF",
+    "#FDB633",
+    "#18A48C",
+    "#9A1BBE",
+    "#EB003B",
+    "#FF6E47",
+    "#646363",
+    "#0F294A",
+    "#97D9E3",
+    "#A59BEE",
+    "#F6A4B7",
+    "#D2C9C0",
+    # "#FFFFFF",
+    "#000000",
+]
+```
+
+## List of topics
+The table below shows the topics that we derived:
+
+```{python}
+#| echo: false
+#| tbl-cap: "Topic names and keywords, and AI-generated names and descriptions"
+
+df = pd.read_csv('repr_docs_brief.csv')
+df[['Name', 'Keywords', 'AI-generated name', 'AI-generated description']].style
+```
+
+## Mentions of topics by informant group
+
+The plot below shows the proportion of utterances mentioning a topic within each informant group - so within a group of informants e.g. Salariés, the proportions should sum to 1 (and because there are ~20 topics, we would expect the average proportion to be ~0.05).
+
+For example, we can see that the group "Médecins du travail" mention the topic "8_médecine_médecine travail_prévention_médecin travail" relatively frequently. Meanwhile the group "Salariés" mention the topic "5_café_midi_heures jour_10 minutes" more often compared to other groups.
+
+```{python}
+#| echo: false
+#| label: fig-professions
+#| fig-cap: "Distributions of mentions of each topic within informant groups"
+#| fig-fullwidth: true
+speaker_data_grouped = pd.read_csv('speaker_data_grouped.csv')
+
+fig_proportion = px.bar(
+    speaker_data_grouped[speaker_data_grouped['Topic']!=-1],
+    x='informant',
+    y='proportion',
+    color='Name',
+    title='Mentions of each topic by informant group',
+    labels={'proportion': 'Proportion of Records', 'informant': 'Informant group'},
+    barmode='group',
+    color_discrete_sequence=NESTA_COLOURS,
+)
+
+fig_proportion.update_layout(
+    width=1200,  # Increase width
+    height=600,  # Adjust height
+    title={'x': 0.5},  # Center title
+    margin=dict(l=50, r=50, t=50, b=50),  # Adjust margins
+    legend_title_text="",  # Hide legend title
+        plot_bgcolor="white",  # Set background of the plot area to white
+    paper_bgcolor="white",  # Set background of the entire figure to white
+)
+
+fig_proportion.show()
+```
+
+## Interactive mapping of the data
+
+The next plot shows each turn/utterance as a single point. **The x and y axes are abstract and do not have any meaning**, though points that are closer together should be similar semantically and points that are further away are more different from each other semantically. Each point on the plot is coloured by topic.
+
+The keywords superimposed on the graph are words that can be considered distinctive of texts in that area of the plot.
+
+The plot is interactive and you can:
+
+* hover over a point to see the file it comes from, the topic, and the text of this utterance
+* click a topic in the legend to remove it from the plot (click it again to add it back)
+
+```{python}
+#| echo: false
+data_viz = pd.read_csv('data_viz.csv')
+centroids = pd.read_csv('centroids.csv')
+
+data_viz['text_wrapped'] = data_viz['text'].str.wrap(30)
+data_viz['text_wrapped'] = data_viz['text_wrapped'].apply(lambda x: x.replace('\n', '<br>'))
+
+duplicates = data_viz.duplicated(subset=['x_c','y_c',
+                                         'keywords'], keep='first')
+
+data_viz.loc[duplicates, 'keywords'] = ""
+data_viz['keywords'] = data_viz['keywords'].fillna("")
+
+professions = data_viz['profession'].unique()
+
+cluster_names = data_viz['Name'].unique()
+
+sorted_list = sorted(
+    cluster_names,
+    key=lambda x: int(x.split('_')[0])  # Extract the numeric prefix and convert to int
+)
+
+```
+
+```{python}
+#| echo: false
+#| label: fig-scatter
+#| fig-cap: "Interactive visualisation of interview transcripts. One point = one turn in conversation. The points are coloured by topic. Keywords indicate the theme of nearby points."
+#| fig-fullwidth: true
+extended_colours = (NESTA_COLOURS * ((len(sorted_list) // len(NESTA_COLOURS)) + 1))[:len(sorted_list)]
+
+fig = px.scatter(
+        data_viz,
+        x="x",
+        y="y",
+        text="keywords",
+        color="Name",
+        # hover_data=["file_name", "text_wrapped"],
+        hover_data={
+        "Name": True,
+        "file_name": True,
+        "text_wrapped": True,
+        "keywords": False,
+        "x": False,
+        "y": False
+    },
+        custom_data=["Name", "file_name", "text_wrapped"],
+        color_discrete_sequence=NESTA_COLOURS,
+        opacity=0.3,
+        category_orders={"Name": sorted_list}
+    )
+
+fig.update_traces(
+    textposition="top center",
+    textfont=dict(
+        size=14,  # Increase font size
+        color="black"  # Text color
+    ),
+)
+
+fig.update_layout(
+    width=1200,  # Increase width
+    height=800,  # Adjust height
+        xaxis=dict(showticklabels=False, title_text=""),  # Hide x-axis ticks and title
+        yaxis=dict(showticklabels=False, title_text=""),  # Hide y-axis ticks and title
+        legend_title_text="",  # Hide legend title
+        plot_bgcolor="white",  # Set background of the plot area to white
+    paper_bgcolor="white",  # Set background of the entire figure to white
+    )
+
+fig
+
+```

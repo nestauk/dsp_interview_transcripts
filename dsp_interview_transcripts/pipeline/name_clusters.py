@@ -26,26 +26,19 @@ class NameDescription(BaseModel):
 
 
 prompt = """
-    I have performed text clustering on some interviews where users were asked about their knowledge of
-    and opinions on different home heating options. In the interview, users were asked about their knowledge
-    of the Boiler Upgrade Scheme, a scheme that provides a subsidy to homeowners wishing to install a heatpump
-    instead of getting a new gas boiler for their home.
+    I have performed text clustering on some interviews where professionals were asked about the occupational risks of sedentary behaviour at
+    work, and the challenges organisations face in reducing sedentary behaviour.
     \n
     One of the clusters contains the following user responses from the interviews:
     {docs}
     The cluster is described by the following keywords: {keywords}
     \n
-    Based on the information above, please provide a name and summary for the cluster as a JSON object with two fields:
-    - name: A short, informative name for the cluster
-    - description: A summary of views of users within the cluster. You can include sentiments they express, reasons for their views, their knowledge levels, and any other relevant information.
+    Based on the information above, please provide a **French language** name and description for the cluster as a JSON object with two fields:
+    - name: A short, informative name for the cluster **in French**
+    - description: A short description of the cluster, based on the user responses and keywords provided **in French**
     \n
     Provide nothing except for this JSON dict.
     \n
-    Example:
-    {{
-        "name": "Energy Efficiency",
-        "description": "This cluster contains user responses about energy efficiency when choosing home heating options. The users have varying degrees of knowledge about the efficiency of different systems. Some reasons for wanting to improve efficiency include environmental concerns and cost concerns."
-    }}
     """
 
 parser = JsonOutputParser(pydantic_object=NameDescription)
@@ -128,19 +121,21 @@ def name_topics(
 
 def main(production: bool = False):
 
-    MIN_LEN = config["min_length"]
-    if production:
-        OUT_PATH = config["prod_paths"]["interim_w_names_s3_path"].format(MIN_LEN=MIN_LEN)
-    else:
-        OUT_PATH = config["test_paths"]["interim_w_names_s3_path"].format(MIN_LEN=MIN_LEN)
+    # MIN_LEN = config["min_length"]
+    # if production:
+    #     OUT_PATH = config["prod_paths"]["interim_w_names_s3_path"].format(MIN_LEN=MIN_LEN)
+    # else:
+    #     OUT_PATH = config["test_paths"]["interim_w_names_s3_path"].format(MIN_LEN=MIN_LEN)
 
-    topic_info = get_rep_docs(production=production)
+    # topic_info = get_rep_docs(production=production)
 
-    topic_info = topic_info.groupby(["Topic", "Name", "Representation"])["text_clean"].apply(list).reset_index()
+    topic_info = pd.read_csv(f"{PROJECT_DIR}/dsp_interview_transcripts/pipeline/bit_france/outputs/repr_docs.csv")
+
+    topic_info = topic_info.groupby(["Topic", "Name", "Representation"])["text"].apply(list).reset_index()
     topic_info["Topic"] = topic_info["Topic"].astype(str)
 
     results = name_topics(
-        topic_info, llm_chain, text_col="text_clean", top_words_col="Representation", topic_label_col="Topic"
+        topic_info, llm_chain, text_col="text", top_words_col="Representation", topic_label_col="Topic"
     )
 
     # Some complicated conditionals to check that what's in `results` can be parsed
@@ -156,7 +151,10 @@ def main(production: bool = False):
     )
 
     logger.info("Saving output...")
-    save_to_s3(S3_BUCKET, topic_info, OUT_PATH)
+    # save_to_s3(S3_BUCKET, topic_info, OUT_PATH)
+    topic_info.to_csv(
+        f"{PROJECT_DIR}/dsp_interview_transcripts/pipeline/bit_france/outputs/topic_names_and_descriptions.csv"
+    )
     logger.info("Done!")
 
 

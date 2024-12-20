@@ -176,4 +176,6 @@ outputs/*
 # data files
 *.csv
 poetry.lock
-poetry.lock
+
+# quarto
+*.html

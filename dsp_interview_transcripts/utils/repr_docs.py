@@ -14,6 +14,7 @@ def get_min_radius(
     k_neighbours: int = 10,
     topic_col: str = "topic",
     embedding_col: str = "norm_embedding",
+    metric="cosine",
 ) -> Tuple[Dict[int, np.ndarray], pd.DataFrame]:
     """
     Calculate the minimum radius that contains `k_neighbours` neighbors for each point in each cluster.
@@ -44,7 +45,7 @@ def get_min_radius(
 
         # Calculate pairwise distances within the cluster
         # Because the embeddings are normalized, it shouldn't matter if we use euclidean or cosine? But euclidean is a bit easier to think about/write tests for?
-        distances = pairwise_distances(embeddings, metric="euclidean")
+        distances = pairwise_distances(embeddings, metric=metric)
 
         # Order the matrix so that the 0th column is the distance to itself,
         # 1 column is distance to closest neighbour, 2 column is the distance to the second closest neighbour, etc.
@@ -60,7 +61,9 @@ def get_min_radius(
     return radius_distributions, clustered_data_copy
 
 
-def extract_repr_docs(clustered_data: pd.DataFrame, n: int = 10, random_seed: int = 42) -> pd.DataFrame:
+def extract_repr_docs(
+    clustered_data: pd.DataFrame, n: int = 10, random_seed: int = 42, user_id_col="conversation"
+) -> pd.DataFrame:
     """
     Extract a representative sample of N documents for each topic.
 
@@ -80,12 +83,12 @@ def extract_repr_docs(clustered_data: pd.DataFrame, n: int = 10, random_seed: in
 
     # Get info on the number of conversations (number of users) per topic
     # - so that we know one user isn't dominating
-    distinct_conversations = first_quartile_data.groupby("topic")["conversation"].nunique().reset_index()
+    distinct_conversations = first_quartile_data.groupby("topic")[user_id_col].nunique().reset_index()
     distinct_conversations.columns = ["topic", "distinct_conversations_in_1st_quartile"]
     logger.info(f"Number of distinct conversations per topic: {distinct_conversations}")
 
     # Keep only one response per user (conversation) in each topic
-    unique_conversations = first_quartile_data.drop_duplicates(subset=["topic", "conversation"])
+    unique_conversations = first_quartile_data.drop_duplicates(subset=["topic", user_id_col])
     # Take a random sample of 10
     sampled_data = (
         unique_conversations.groupby("topic")
