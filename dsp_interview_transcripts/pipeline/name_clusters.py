@@ -129,33 +129,37 @@ def main(production: bool = False):
 
     # topic_info = get_rep_docs(production=production)
 
-    topic_info = pd.read_csv(f"{PROJECT_DIR}/dsp_interview_transcripts/pipeline/bit_france/outputs/repr_docs.csv")
+    professions = ["Décideurs", "Salariés", "Elus"]
 
-    topic_info = topic_info.groupby(["Topic", "Name", "Representation"])["text"].apply(list).reset_index()
-    topic_info["Topic"] = topic_info["Topic"].astype(str)
+    for profession in professions:
+        logger.info(f"Processing the interviews of the {profession} group...")
+        OUTPATH = f"{PROJECT_DIR}/dsp_interview_transcripts/pipeline/bit_france/outputs/{profession}/"
 
-    results = name_topics(
-        topic_info, llm_chain, text_col="text", top_words_col="Representation", topic_label_col="Topic"
-    )
+        topic_info = pd.read_csv(f"{OUTPATH}repr_docs.csv")
 
-    # Some complicated conditionals to check that what's in `results` can be parsed
-    topic_info[f"{model}_name"] = topic_info["Topic"].map(
-        lambda x: results[x]["name"]
-        if x in results and isinstance(results[x], dict) and "name" in results[x]
-        else None
-    )
-    topic_info[f"{model}_description"] = topic_info["Topic"].map(
-        lambda x: results[x]["description"]
-        if x in results and isinstance(results[x], dict) and "description" in results[x]
-        else None
-    )
+        topic_info = topic_info.groupby(["Topic", "Name", "Representation"])["text"].apply(list).reset_index()
+        topic_info["Topic"] = topic_info["Topic"].astype(str)
 
-    logger.info("Saving output...")
-    # save_to_s3(S3_BUCKET, topic_info, OUT_PATH)
-    topic_info.to_csv(
-        f"{PROJECT_DIR}/dsp_interview_transcripts/pipeline/bit_france/outputs/topic_names_and_descriptions.csv"
-    )
-    logger.info("Done!")
+        results = name_topics(
+            topic_info, llm_chain, text_col="text", top_words_col="Representation", topic_label_col="Topic"
+        )
+
+        # Some complicated conditionals to check that what's in `results` can be parsed
+        topic_info[f"{model}_name"] = topic_info["Topic"].map(
+            lambda x: results[x]["name"]
+            if x in results and isinstance(results[x], dict) and "name" in results[x]
+            else None
+        )
+        topic_info[f"{model}_description"] = topic_info["Topic"].map(
+            lambda x: results[x]["description"]
+            if x in results and isinstance(results[x], dict) and "description" in results[x]
+            else None
+        )
+
+        logger.info("Saving output...")
+        # save_to_s3(S3_BUCKET, topic_info, OUT_PATH)
+        topic_info.to_csv(f"{OUTPATH}topic_names_and_descriptions.csv")
+        logger.info("Done!")
 
 
 if __name__ == "__main__":

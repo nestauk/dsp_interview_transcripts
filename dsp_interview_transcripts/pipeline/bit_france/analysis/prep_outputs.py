@@ -1,4 +1,5 @@
 import ast
+import os
 import re
 
 import cluster_analysis_utils
@@ -115,39 +116,50 @@ def get_topics_by_profession(speaker_data_topics):
 
 
 if __name__ == "__main__":
-    speaker_data_topics = pd.read_csv(
-        f"{PROJECT_DIR}/dsp_interview_transcripts/pipeline/bit_france/outputs/speaker_data_topics_selection_leaf_min_length_9_min_cluster_50_red_probabilities.csv"
-    )
-    topic_info = pd.read_csv(
-        f"{PROJECT_DIR}/dsp_interview_transcripts/pipeline/bit_france/outputs/bertopic_topic_info_selection_leaf_min_length_9_min_cluster_50_red_probabilities.csv"
-    )
+    professions = ["Décideurs", "Salariés", "Elus"]
 
-    speaker_data_topics = merge_2d_embeddings(speaker_data_topics)
+    for profession in professions:
+        logger.info(f"Processing the interviews of the {profession} group...")
+        OUTPATH = f"{PROJECT_DIR}/dsp_interview_transcripts/pipeline/bit_france/outputs/{profession}/"
+        os.makedirs(OUTPATH, exist_ok=True)
 
-    speaker_data_topics = pd.merge(
-        speaker_data_topics,
-        topic_info[["Topic", "Name", "Representation"]],
-        left_on="topic",
-        right_on="Topic",
-        how="left",
-    )
+        speaker_data_topics = pd.read_csv(
+            f"{OUTPATH}speaker_data_topics_selection_leaf_min_length_9_min_cluster_15_red_probabilities.csv"
+        )
+        topic_info = pd.read_csv(
+            f"{OUTPATH}bertopic_topic_info_selection_leaf_min_length_9_min_cluster_15_red_probabilities.csv"
+        )
 
-    speaker_data_topics.to_csv(
-        f"{PROJECT_DIR}/dsp_interview_transcripts/pipeline/bit_france/outputs/speaker_data_topics.csv", index=False
-    )
+        speaker_data_topics = merge_2d_embeddings(speaker_data_topics)
 
-    repr_docs = save_repr_docs(
-        speaker_data_topics,
-        outpath=f"{PROJECT_DIR}/dsp_interview_transcripts/pipeline/bit_france/outputs/repr_docs.csv",
-    )
+        speaker_data_topics = pd.merge(
+            speaker_data_topics,
+            topic_info[["Topic", "Name", "Representation"]],
+            left_on="topic",
+            right_on="Topic",
+            how="left",
+        )
 
-    data_viz, centroids = get_data_w_keywords(speaker_data_topics)
+        speaker_data_topics.to_csv(f"{OUTPATH}speaker_data_topics.csv", index=False)
 
-    data_viz.to_csv(f"{PROJECT_DIR}/dsp_interview_transcripts/pipeline/bit_france/report/data_viz.csv", index=False)
-    centroids.to_csv(f"{PROJECT_DIR}/dsp_interview_transcripts/pipeline/bit_france/report/centroids.csv", index=False)
+        repr_docs = save_repr_docs(
+            speaker_data_topics,
+            outpath=f"{OUTPATH}repr_docs.csv",
+        )
 
-    speaker_data_grouped = get_topics_by_profession(speaker_data_topics)
+        data_viz, centroids = get_data_w_keywords(speaker_data_topics)
 
-    speaker_data_grouped.to_csv(
-        f"{PROJECT_DIR}/dsp_interview_transcripts/pipeline/bit_france/report/speaker_data_grouped.csv", index=False
-    )
+        data_viz.to_csv(
+            f"{PROJECT_DIR}/dsp_interview_transcripts/pipeline/bit_france/report/{profession}_data_viz.csv",
+            index=False,
+        )
+        centroids.to_csv(
+            f"{PROJECT_DIR}/dsp_interview_transcripts/pipeline/bit_france/report/{profession}_centroids.csv",
+            index=False,
+        )
+
+        # speaker_data_grouped = get_topics_by_profession(speaker_data_topics)
+
+        # speaker_data_grouped.to_csv(
+        #     f"{PROJECT_DIR}/dsp_interview_transcripts/pipeline/bit_france/report/{profession}_speaker_data_grouped.csv", index=False
+        # )
