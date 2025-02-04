@@ -38,7 +38,6 @@ npr.seed(RANDOM_SEED)
 random.seed(RANDOM_SEED)
 torch.manual_seed(RANDOM_SEED)
 
-# SENTENCE_MODEL = SentenceTransformer('sentence-transformers/paraphrase-multilingual-mpnet-base-v2')
 model_name = "dangvantuan/sentence-camembert-large"
 SENTENCE_MODEL = SentenceTransformer(model_name)
 
@@ -60,7 +59,7 @@ def prep_data(data, min_length, text_col="text"):
     return speaker_data_filtered
 
 
-@plac.opt("selection", "Cluster selection method ('eom' or 'leaf')", type=str)
+@plac.opt("selection", "Cluster selection method ('eom' or 'leaf')", type=str, abbrev="s")
 @plac.opt("min_length", "Minimum length of word count for filtering", type=int, abbrev="l")
 @plac.opt("min_cluster_size", "Minimum cluster size for HDBSCAN", type=int, abbrev="c")
 @plac.opt(

@@ -153,4 +153,4 @@ def format_output_df(
             )
         )
 
-        return topic_info
+    return topic_info

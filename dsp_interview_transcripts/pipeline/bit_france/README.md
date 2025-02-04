@@ -16,6 +16,9 @@ data/bit_france/Salariés/
 Download [this file](https://docs.google.com/spreadsheets/d/1XJAxPFh_n8UIAC-wtBaE1wPVUCbaDguHdZCfQedAIeE/edit?gid=1062484915#gid=1062484915) and store it as `data/bit_france/converted/bit_france_interview_sections - ALT_data_labelled_with_new_sections.csv`. This file has been **manually labelled** to indicate where the section of the interview about interventions/prototypes begins. See the notebook `dsp_interview_transcripts/pipeline/bit_france/analysis/identify_interview_sections.ipynb` for more information.
 
 # Analysis
+
+**Steps 1-9 below can be triggered by running `dsp_interview_transcripts/pipeline/bit_france/analysis/run_bit_france_analysis.py`**. All the inputs must be downloaded before running this script; all outputs get saved locally.
+
 ## Data transformations
 
 1. `dsp_interview_transcripts/pipeline/bit_france/analysis/convert_txt.py` converts the `.docx` files to `.txt` files
