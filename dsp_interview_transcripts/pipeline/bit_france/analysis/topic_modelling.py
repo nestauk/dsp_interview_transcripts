@@ -54,25 +54,25 @@ model_name = "dangvantuan/sentence-camembert-large"
 SENTENCE_MODEL = SentenceTransformer(model_name)
 
 
-def prep_data(data, min_length):
+def prep_data(data, min_length, text_col="text"):
     # We have to deduplicate because there seems to be at least one duplicate interview
-    data = data.drop_duplicates(subset=["text"])
+    data = data.drop_duplicates(subset=[text_col])
     logger.info(f"N records after deduplication: {len(data)}")
 
     logger.info(data["role"].value_counts())
 
     # Isolate just the interviewees
-    speaker_data = data[data["role"] == "informant"]
+    speaker_data = data[data["role"] == "INFORMANT"]
 
-    speaker_data["word_count"] = speaker_data["text"].apply(lambda x: len(x.split()))
+    speaker_data["word_count"] = speaker_data[text_col].apply(lambda x: len(x.split()))
 
     speaker_data_filtered = speaker_data[speaker_data["word_count"] > min_length]
 
     return speaker_data_filtered
 
 
-def embed_docs(speaker_data_filtered, min_length, outpath, model):
-    docs = speaker_data_filtered["text"].tolist()
+def embed_docs(speaker_data_filtered, min_length, outpath, model, text_col="text"):
+    docs = speaker_data_filtered[text_col].tolist()
     logger.info("Embedding user messages...")
     embeddings = model.encode(docs, show_progress_bar=True)
     embeddings_path = f"{outpath}embeddings_min_length_{min_length}.npy"
@@ -94,7 +94,7 @@ def main(selection="eom", min_length=5, min_cluster_size=50, reduction_strategy=
     if reduction_strategy == "ctfidf":
         reduction_strategy = "c-tf-idf"
 
-    maquettes_df = pd.read_csv(f"{PROJECT_DIR}/data/bit_france/converted/maquettes_df.csv")
+    maquettes_df = pd.read_csv(f"{PROJECT_DIR}/data/bit_france/converted/maquettes_df_context.csv")
 
     professions = ["Décideurs", "Salariés", "Elus"]
 
@@ -107,10 +107,14 @@ def main(selection="eom", min_length=5, min_cluster_size=50, reduction_strategy=
 
         logger.info(f"N records for {profession}: {len(data)}")
 
-        speaker_data_filtered = prep_data(data, min_length)
+        speaker_data_filtered = prep_data(data, min_length, text_col="context_formatted")
 
         docs, embeddings = embed_docs(
-            speaker_data_filtered, min_length=min_length, outpath=OUTPATH, model=SENTENCE_MODEL
+            speaker_data_filtered,
+            min_length=min_length,
+            outpath=OUTPATH,
+            model=SENTENCE_MODEL,
+            text_col="context_formatted",
         )
 
         umap_model = UMAP(

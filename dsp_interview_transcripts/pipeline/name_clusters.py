@@ -1,5 +1,9 @@
 """Use a llama model to give names and descriptions for the topics."""
+from pathlib import Path
+from typing import Any
 from typing import Dict
+from typing import List
+from typing import Type
 
 import pandas as pd
 import plac
@@ -7,72 +11,96 @@ import plac
 from langchain.prompts import PromptTemplate
 from langchain_community.chat_models import ChatOllama
 from langchain_core.output_parsers import JsonOutputParser
+from langchain_core.runnables import Runnable
 from pydantic import BaseModel
 from pydantic import Field
 
 from dsp_interview_transcripts import PROJECT_DIR
-from dsp_interview_transcripts import S3_BUCKET
-from dsp_interview_transcripts import config
 from dsp_interview_transcripts import logger
-from dsp_interview_transcripts.getters.data_getters import save_to_s3
-from dsp_interview_transcripts.getters.interim import get_rep_docs
+
+
+MODEL_NAME = "llama3.2"
+TEMPERATURE = 0
+PROMPT_PATH = PROJECT_DIR / "dsp_interview_transcripts/pipeline/prompts/bit_france_prompt.txt"
 
 
 class NameDescription(BaseModel):
     """Model for naming and describing a group of documents."""
 
     name: str = Field(description="Informative name for this group of documents")
-    description: str = Field(description="Description of this group of documents")
+    maquettes: str = Field(description="Maquettes mentioned in the texts")
+    positives: str = Field(description="Positive attributes of the maquettes")
+    negatives: str = Field(description="Negative attributes of the maquettes")
+    other: str = Field(description="Other important information")
+    summary: str = Field(description="Summary of this group of documents")
 
 
-prompt = """
-    I have performed text clustering on some interviews where professionals were asked about the occupational risks of sedentary behaviour at
-    work, and the challenges organisations face in reducing sedentary behaviour.
-    \n
-    One of the clusters contains the following user responses from the interviews:
-    {docs}
-    The cluster is described by the following keywords: {keywords}
-    \n
-    Based on the information above, please provide a **French language** name and description for the cluster as a JSON object with two fields:
-    - name: A short, informative name for the cluster **in French**
-    - description: A short description of the cluster, based on the user responses and keywords provided **in French**
-    \n
-    Provide nothing except for this JSON dict.
-    \n
+def load_prompt_template(prompt_path: Path) -> str:
+    """Load the prompt template from a file."""
+    if not prompt_path.exists():
+        raise FileNotFoundError(f"Prompt file not found: {prompt_path}")
+
+    with prompt_path.open("r", encoding="utf-8") as f:
+        return f.read().strip()
+
+
+def get_chain(
+    prompt_path: Path = PROMPT_PATH,
+    input_vars: List[str] = ["docs", "keywords"],
+    output_template: Type[BaseModel] = NameDescription,
+    model: str = MODEL_NAME,
+    temp: float = TEMPERATURE,
+):
+    """
+    Constructs a LangChain processing chain using a prompt template, a language model,
+    and a JSON output parser.
+
+    Args:
+        prompt_path (Path, optional): Path to text file containing prompt template. Defaults to PROMPT_PATH.
+        input_vars (List[str], optional): List of variables expected to be formatted into the prompt. Defaults to ["docs", "keywords"].
+        output_template (Type[BaseModel], optional): Pydantic model for the output. Defaults to NameDescription.
+        model (str, optional): Name of the language model to use. Defaults to MODEL_NAME.
+        temp (float, optional): Temperature setting for the model. Defaults to TEMPERATURE.
+
+    Returns:
+        Runnable: A langchain chain
     """
 
-parser = JsonOutputParser(pydantic_object=NameDescription)
+    prompt = load_prompt_template(prompt_path)
 
-final_prompt = PromptTemplate(
-    template=prompt,
-    input_variables=["docs", "keywords"],
-    partial_variables={"format_instructions": parser.get_format_instructions()},
-)
+    parser = JsonOutputParser(pydantic_object=output_template)
 
-model = "llama3.2"
+    final_prompt = PromptTemplate(
+        template=prompt,
+        input_variables=input_vars,
+        partial_variables={"format_instructions": parser.get_format_instructions()},
+    )
 
-ollama_model = ChatOllama(model=model, temperature=0)
+    ollama_model = ChatOllama(model=model, temperature=temp)
 
-llm_chain = final_prompt | ollama_model | parser
+    llm_chain = final_prompt | ollama_model | parser
+
+    return llm_chain
 
 
 def name_topics(
     topic_info: pd.DataFrame,
-    llm_chain,
+    llm_chain: Runnable,
     text_col: str = "text_clean",
     top_words_col: str = "Representation",
     topic_label_col: str = "Topic",
-) -> Dict[str, dict]:
+) -> Dict[str, Dict[str, Any]]:
     """
-    Generate names and descriptions for each topic by invoking an LLM chain,
-    using representative text and keywords for each topic.
+    Run an LLM chain over each topic.
 
     Args:
         topic_info (pd.DataFrame): A DataFrame containing topic information,
-            including columns for text samples, top words, and topic labels.
+            including columns for text samples, top words, and topic labels:
+            - `{text_col}`: Column with text samples for each topic.
+            - `{top_words_col}`: Column with representative words for each topic.
+            - `{topic_label_col}`: Column containing topic identifiers.
         llm_chain: A language model chain used for generating topic names and descriptions.
             It must support an `invoke` method that accepts a dictionary with 'docs' and 'keywords' keys.
-        topics (List[str]): A list of topic identifiers to process.
         text_col (str, optional): Column name in `topic_info` containing the text data for each topic.
             Defaults to 'text_clean'.
         top_words_col (str, optional): Column name in `topic_info` containing the top words for each topic.
@@ -81,8 +109,9 @@ def name_topics(
             Defaults to 'Cluster'.
 
     Returns:
-        Dict[str, dict]: A dictionary where each key is a topic identifier and each value is
-        a dictionary with the generated 'name' and 'description' for that topic.
+        Dict[str, Dict[str, Any]]: A dictionary where each key is a topic identifier (str),
+        and each value is a dictionary with the output for that topic. The form of the output
+        is determined in the definition of llm_chain.
 
     Raises:
         Exception: Logs and continues on any exceptions encountered while processing topics,
@@ -103,13 +132,12 @@ def name_topics(
         logger.info(f"Processing topic {topic}")
         temp_df = topic_info[topic_info[topic_label_col] == topic]
         docs = temp_df[text_col].values[0]
-        logger.info(f"Docs: {docs}")
         keywords = temp_df[top_words_col].values[0]
         logger.info(f"Keywords: {keywords}")
 
         try:
             output = llm_chain.invoke({"docs": docs, "keywords": keywords})
-            logger.info(f"Generated name: {output['name']}, description: {output['description']}")
+            logger.info(output.keys())
             results[topic] = output
 
         except Exception as e:
@@ -119,17 +147,11 @@ def name_topics(
     return results
 
 
-def main(production: bool = False):
-
-    # MIN_LEN = config["min_length"]
-    # if production:
-    #     OUT_PATH = config["prod_paths"]["interim_w_names_s3_path"].format(MIN_LEN=MIN_LEN)
-    # else:
-    #     OUT_PATH = config["test_paths"]["interim_w_names_s3_path"].format(MIN_LEN=MIN_LEN)
-
-    # topic_info = get_rep_docs(production=production)
+def main():
 
     professions = ["Décideurs", "Salariés", "Elus"]
+
+    llm_chain = get_chain()
 
     for profession in professions:
         logger.info(f"Processing the interviews of the {profession} group...")
@@ -137,27 +159,41 @@ def main(production: bool = False):
 
         topic_info = pd.read_csv(f"{OUTPATH}repr_docs.csv")
 
-        topic_info = topic_info.groupby(["Topic", "Name", "Representation"])["text"].apply(list).reset_index()
+        topic_info = (
+            topic_info.groupby(["Topic", "Name", "Representation"])["context_formatted"].apply(list).reset_index()
+        )
         topic_info["Topic"] = topic_info["Topic"].astype(str)
 
         results = name_topics(
-            topic_info, llm_chain, text_col="text", top_words_col="Representation", topic_label_col="Topic"
+            topic_info,
+            llm_chain,
+            text_col="context_formatted",
+            top_words_col="Representation",
+            topic_label_col="Topic",
         )
 
-        # Some complicated conditionals to check that what's in `results` can be parsed
-        topic_info[f"{model}_name"] = topic_info["Topic"].map(
-            lambda x: results[x]["name"]
-            if x in results and isinstance(results[x], dict) and "name" in results[x]
-            else None
-        )
-        topic_info[f"{model}_description"] = topic_info["Topic"].map(
-            lambda x: results[x]["description"]
-            if x in results and isinstance(results[x], dict) and "description" in results[x]
-            else None
-        )
+        # Some complicated conditionals to check that what's in `results` can be parsed:
+        for output_group in [
+            ("name",),
+            ("résumé", "summary", "synthèse"),
+            ("maquettes",),
+            ("positifs", "positives"),
+            ("négatifs", "negatives"),
+            ("autres", "other"),
+        ]:
+            consolidated_output = "_".join(output_group)  # Create a descriptive column name
+            topic_info[f"{MODEL_NAME}_{consolidated_output}"] = topic_info["Topic"].map(
+                lambda x: next(
+                    (
+                        results[x][output]
+                        for output in output_group
+                        if x in results and isinstance(results[x], dict) and output in results[x]
+                    ),
+                    None,
+                )
+            )
 
         logger.info("Saving output...")
-        # save_to_s3(S3_BUCKET, topic_info, OUT_PATH)
         topic_info.to_csv(f"{OUTPATH}topic_names_and_descriptions.csv")
         logger.info("Done!")
 

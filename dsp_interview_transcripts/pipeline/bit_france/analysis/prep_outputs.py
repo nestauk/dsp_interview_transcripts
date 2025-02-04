@@ -1,4 +1,5 @@
 import ast
+import math
 import os
 import re
 
@@ -41,7 +42,7 @@ def merge_2d_embeddings(speaker_data_topics):
     return pd.concat([speaker_data_topics, embeddings_df], axis=1)
 
 
-def save_repr_docs(speaker_data_topics, outpath):
+def save_repr_docs(speaker_data_topics, outpath, text_col="text"):
     _, clustered_data = get_min_radius(
         speaker_data_topics, k_neighbours=10, topic_col="topic", embedding_col="embeddings", metric="cosine"
     )
@@ -51,19 +52,19 @@ def save_repr_docs(speaker_data_topics, outpath):
     )
     repr_docs = extract_repr_docs(clustered_data, n=10, random_seed=42, user_id_col="file_name")
 
-    repr_docs = repr_docs[["Topic", "Name", "Representation", "file_name", "profession", "text"]]
+    repr_docs = repr_docs[["Topic", "Name", "Representation", "file_name", "profession", text_col]]
 
     repr_docs.to_csv(outpath, index=False)
 
     return repr_docs
 
 
-def get_data_w_keywords(speaker_data_topics):
-    clusterer = KMeans(n_clusters=35, random_state=10)
+def get_data_w_keywords(speaker_data_topics, text_col="text", n_clusters=30):
+    clusterer = KMeans(n_clusters=n_clusters, random_state=10)
     clusterer.fit(speaker_data_topics[["x", "y"]])
     soft_clusters = list(clusterer.labels_)
 
-    texts = speaker_data_topics["text"].apply(preproc)
+    texts = speaker_data_topics[text_col].apply(preproc)
 
     cluster_texts = cluster_analysis_utils.cluster_texts(texts, soft_clusters)
 
@@ -143,11 +144,14 @@ if __name__ == "__main__":
         speaker_data_topics.to_csv(f"{OUTPATH}speaker_data_topics.csv", index=False)
 
         repr_docs = save_repr_docs(
-            speaker_data_topics,
-            outpath=f"{OUTPATH}repr_docs.csv",
+            speaker_data_topics, outpath=f"{OUTPATH}repr_docs.csv", text_col="context_formatted"
         )
 
-        data_viz, centroids = get_data_w_keywords(speaker_data_topics)
+        n_clusters = len(speaker_data_topics["Topic"].unique()) * 2
+
+        data_viz, centroids = get_data_w_keywords(
+            speaker_data_topics, text_col="context_formatted", n_clusters=n_clusters
+        )
 
         data_viz.to_csv(
             f"{PROJECT_DIR}/dsp_interview_transcripts/pipeline/bit_france/report/{profession}_data_viz.csv",
@@ -157,9 +161,3 @@ if __name__ == "__main__":
             f"{PROJECT_DIR}/dsp_interview_transcripts/pipeline/bit_france/report/{profession}_centroids.csv",
             index=False,
         )
-
-        # speaker_data_grouped = get_topics_by_profession(speaker_data_topics)
-
-        # speaker_data_grouped.to_csv(
-        #     f"{PROJECT_DIR}/dsp_interview_transcripts/pipeline/bit_france/report/{profession}_speaker_data_grouped.csv", index=False
-        # )
