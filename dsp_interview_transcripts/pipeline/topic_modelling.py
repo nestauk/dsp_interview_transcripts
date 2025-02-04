@@ -22,6 +22,9 @@ from dsp_interview_transcripts import logger
 from dsp_interview_transcripts.getters.data_getters import save_to_s3
 from dsp_interview_transcripts.getters.interim import get_cleaned_data
 from dsp_interview_transcripts.utils.repr_docs import *
+from dsp_interview_transcripts.utils.topic_modelling import embed_docs
+from dsp_interview_transcripts.utils.topic_modelling import get_proportion_noise
+from dsp_interview_transcripts.utils.topic_modelling import init_topic_model
 
 
 # Set random seeds
@@ -30,6 +33,7 @@ np.random.seed(RANDOM_SEED)
 random.seed(RANDOM_SEED)
 torch.manual_seed(RANDOM_SEED)
 
+model_name = "sentence-transformers/all-MiniLM-L6-v2"
 SENTENCE_MODEL = SentenceTransformer("all-MiniLM-L6-v2")
 
 MIN_CLUSTER_SIZE = 20
@@ -48,8 +52,6 @@ def main(production: bool = False):
 
     user_messages = get_cleaned_data(production=production)
 
-    empty_reduction_model = BaseDimensionalityReduction()
-
     umap_model = UMAP(
         n_neighbors=15,
         n_components=50,
@@ -58,48 +60,17 @@ def main(production: bool = False):
         random_state=RANDOM_SEED,
     )
 
-    hdbscan_model = HDBSCAN(
-        min_cluster_size=MIN_CLUSTER_SIZE,
-        metric="euclidean",
-        cluster_selection_method="eom",
-        prediction_data=True,
-    )
-
-    vectorizer_model = TfidfVectorizer(
+    topic_model, _, _ = init_topic_model(
         stop_words="english",
-        min_df=1,
-        max_df=0.85,
-        ngram_range=(1, 3),
-    )
-
-    # KeyBERT
-    keybert_model = KeyBERTInspired()
-
-    # MMR
-    mmr_model = MaximalMarginalRelevance(diversity=0.3)
-
-    # All representation models
-    representation_model = {
-        "KeyBERT": keybert_model,
-        "MMR": mmr_model,
-    }
-
-    topic_model = BERTopic(
-        # Pipeline models
-        embedding_model="sentence-transformers/all-MiniLM-L6-v2",
-        umap_model=empty_reduction_model,
-        hdbscan_model=hdbscan_model,
-        vectorizer_model=vectorizer_model,
-        representation_model=representation_model,
-        # Hyperparameters
-        top_n_words=10,
-        verbose=True,
-        calculate_probabilities=True,
+        min_cluster_size=MIN_CLUSTER_SIZE,
+        hdbscan_selection_method="eom",
+        embedding_model=model_name,
+        seed=RANDOM_SEED,
+        empty_reduction=True,
     )
 
     docs = user_messages["text_clean"].tolist()
-    logger.info("Embedding user messages...")
-    embeddings = SENTENCE_MODEL.encode(docs, show_progress_bar=True)
+    docs, embeddings = embed_docs(docs, SENTENCE_MODEL, save=False)
 
     embeddings_50d = umap_model.fit_transform(embeddings)
 

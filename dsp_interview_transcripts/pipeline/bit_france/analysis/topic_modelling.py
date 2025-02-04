@@ -9,30 +9,19 @@ import os
 import random
 
 import nltk
-import numpy as np
 import pandas as pd
 import plac
 import torch
 
-from bertopic import BERTopic
-from bertopic.dimensionality import BaseDimensionalityReduction
-from bertopic.representation import KeyBERTInspired
-from bertopic.representation import MaximalMarginalRelevance
-from hdbscan import HDBSCAN
 from nltk.corpus import stopwords
-from nltk.tokenize import sent_tokenize
 from sentence_transformers import SentenceTransformer
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.preprocessing import normalize
-from umap import UMAP
 
 from dsp_interview_transcripts import PROJECT_DIR
-from dsp_interview_transcripts import S3_BUCKET
-from dsp_interview_transcripts import config
 from dsp_interview_transcripts import logger
-from dsp_interview_transcripts.getters.data_getters import save_to_s3
-from dsp_interview_transcripts.getters.interim import get_cleaned_data
 from dsp_interview_transcripts.utils.repr_docs import *
+from dsp_interview_transcripts.utils.topic_modelling import embed_docs
+from dsp_interview_transcripts.utils.topic_modelling import get_proportion_noise
+from dsp_interview_transcripts.utils.topic_modelling import init_topic_model
 
 
 nltk.download("stopwords")
@@ -71,15 +60,6 @@ def prep_data(data, min_length, text_col="text"):
     return speaker_data_filtered
 
 
-def embed_docs(speaker_data_filtered, min_length, outpath, model, text_col="text"):
-    docs = speaker_data_filtered[text_col].tolist()
-    logger.info("Embedding user messages...")
-    embeddings = model.encode(docs, show_progress_bar=True)
-    embeddings_path = f"{outpath}embeddings_min_length_{min_length}.npy"
-    np.save(embeddings_path, embeddings)
-    return docs, embeddings
-
-
 @plac.opt("selection", "Cluster selection method ('eom' or 'leaf')", type=str)
 @plac.opt("min_length", "Minimum length of word count for filtering", type=int, abbrev="l")
 @plac.opt("min_cluster_size", "Minimum cluster size for HDBSCAN", type=int, abbrev="c")
@@ -109,60 +89,18 @@ def main(selection="eom", min_length=5, min_cluster_size=50, reduction_strategy=
 
         speaker_data_filtered = prep_data(data, min_length, text_col="context_formatted")
 
+        docs = speaker_data_filtered["context_formatted"].tolist()
+
         docs, embeddings = embed_docs(
-            speaker_data_filtered,
-            min_length=min_length,
-            outpath=OUTPATH,
-            model=SENTENCE_MODEL,
-            text_col="context_formatted",
+            docs=docs, model=SENTENCE_MODEL, save=True, outpath=f"{OUTPATH}embeddings_min_length_{min_length}.npy"
         )
 
-        umap_model = UMAP(
-            n_neighbors=15,
-            n_components=50,
-            min_dist=0.1,
-            metric="cosine",
-            random_state=RANDOM_SEED,
-        )
-
-        hdbscan_model = HDBSCAN(
-            min_samples=5,
-            min_cluster_size=min_cluster_size,
-            metric="euclidean",
-            cluster_selection_method=selection,
-            prediction_data=True,
-        )
-
-        vectorizer_model = TfidfVectorizer(
+        topic_model, vectorizer_model, representation_model = init_topic_model(
             stop_words=french_stopwords,
-            min_df=1,
-            max_df=0.85,
-            ngram_range=(1, 3),
-        )
-
-        # KeyBERT
-        keybert_model = KeyBERTInspired()
-
-        # MMR
-        mmr_model = MaximalMarginalRelevance(diversity=0.3)
-
-        # All representation models
-        representation_model = {
-            "KeyBERT": keybert_model,
-            "MMR": mmr_model,
-        }
-
-        topic_model = BERTopic(
-            # Pipeline models
+            min_cluster_size=min_cluster_size,
+            hdbscan_selection_method=selection,
             embedding_model=model_name,
-            umap_model=umap_model,
-            hdbscan_model=hdbscan_model,
-            vectorizer_model=vectorizer_model,
-            representation_model=representation_model,
-            # Hyperparameters
-            top_n_words=10,
-            verbose=True,
-            calculate_probabilities=True,
+            seed=RANDOM_SEED,
         )
 
         topics, probs = topic_model.fit_transform(docs, embeddings)
@@ -193,13 +131,11 @@ def main(selection="eom", min_length=5, min_cluster_size=50, reduction_strategy=
         topic_info.to_csv(topic_info_path, index=False)
 
         # What proportion is noise?
-        total_elements = len(new_topics)
-        count_noise = new_topics.count(-1)
-        proportion_noise = count_noise / total_elements
-        logger.info(f"{proportion_noise}")
-        noise_path = f"{OUTPATH}noise_prop_selection_{selection}_min_length_{min_length}_min_cluster_{min_cluster_size}_red_{reduction_strategy}.txt"
-        with open(noise_path, "w") as f:
-            f.write(str(proportion_noise))
+        proportion_noise = get_proportion_noise(
+            new_topics,
+            save=True,
+            outpath=f"{OUTPATH}noise_prop_selection_{selection}_min_length_{min_length}_min_cluster_{min_cluster_size}_red_{reduction_strategy}.txt",
+        )
 
         speaker_data_filtered["embeddings"] = embeddings.tolist()
         speaker_data_filtered["topic"] = new_topics
