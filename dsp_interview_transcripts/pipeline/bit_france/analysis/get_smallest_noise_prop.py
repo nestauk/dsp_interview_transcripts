@@ -1,3 +1,13 @@
+"""
+The script `dsp_interview_transcripts/pipeline/bit_france/analysis/topic_modelling.py` runs a topic model and saves, as one of its output,
+a `.txt` file containing the proportion of texts that were assigned to the noise cluster.
+
+This script allows you to iterate over these .txt files (assuming you have tried a few different hyperparameter combinations) and tells you which
+one contains the smallest number i.e. which hyperparameter combination resulted in the least noise.
+
+In practice this wasn't the most helpful metric.
+"""
+
 import os
 import re
 
@@ -44,10 +54,11 @@ def find_file_with_smallest_number(directory):
     return smallest_file
 
 
-# Example usage
-directory_path = f"{PROJECT_DIR}/dsp_interview_transcripts/pipeline/bit_france/outputs"
-result = find_file_with_smallest_number(directory_path)
-if result:
-    print(f"The file with the smallest number is: {result}")
-else:
-    print("No '.txt' files with valid numbers were found in the directory.")
+if __name__ == "__main__":
+
+    directory_path = f"{PROJECT_DIR}/dsp_interview_transcripts/pipeline/bit_france/outputs"
+    result = find_file_with_smallest_number(directory_path)
+    if result:
+        print(f"The file with the smallest number is: {result}")
+    else:
+        print("No '.txt' files with valid numbers were found in the directory.")
