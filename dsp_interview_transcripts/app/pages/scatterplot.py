@@ -9,43 +9,13 @@ from dash import dcc
 from dash import html
 from data import data_viz
 from data import transcripts
+from style import CONTENT_STYLE
+from style import NESTA_COLOURS
+from style import SIDEBAR_STYLE
 
 
 dash.register_page(__name__, path="/scatterplot")
 
-# Sidebar layout
-SIDEBAR_STYLE = {
-    "position": "fixed",
-    "top": 0,
-    "left": 0,
-    "bottom": 0,
-    "width": "16rem",
-    "padding": "2rem 1rem",
-    "background-color": "#f8f9fa",
-}
-
-CONTENT_STYLE = {
-    "margin-left": "18rem",
-    "margin-right": "2rem",
-    "padding": "2rem 1rem",
-}
-
-NESTA_COLOURS = [
-    "#0000FF",
-    "#FDB633",
-    "#18A48C",
-    "#9A1BBE",
-    "#EB003B",
-    "#FF6E47",
-    "#646363",
-    "#0F294A",
-    "#97D9E3",
-    "#A59BEE",
-    "#F6A4B7",
-    "#D2C9C0",
-    "#FFFFFF",
-    "#000000",
-]
 
 layout = html.Div(
     [
@@ -115,8 +85,6 @@ layout = html.Div(
             ],
             style={"width": "100%"},
         ),
-        # Hidden div for storing the index to scroll to
-        html.Div(id="row-index", style={"display": "none"}),
     ],
     style=CONTENT_STYLE,
 )
@@ -172,22 +140,16 @@ def update_scatter_plot(clickData):
     [
         Output("filtered-table", "data"),
         Output("filtered-table", "style_data_conditional"),
-        Output("name-display", "children"),
-        Output("description-display", "children"),
-        Output("conversation-display", "children"),
-        Output("text-clean-display", "children"),
-        Output("row-index", "children"),
     ],
     Input("scatter-plot", "clickData"),
 )
-def display_click_data(clickData):
+def update_table(clickData):
     if clickData:
         selected_uuid = clickData["points"][0]["customdata"][2]
         conversation_id = clickData["points"][0]["customdata"][0]
 
         filtered_data = transcripts[transcripts["conversation"] == conversation_id]
         table_data = filtered_data[["uuid", "role", "text_clean"]].to_dict("records")
-        selected_index = filtered_data[filtered_data["uuid"] == selected_uuid].index[0]
         style_data_conditional = [
             {
                 "if": {"filter_query": f'{{uuid}} = "{selected_uuid}"'},
@@ -196,12 +158,31 @@ def display_click_data(clickData):
             }
         ]
 
+        return table_data, style_data_conditional
+
+    return [], []
+
+
+@dash.callback(
+    [
+        Output("name-display", "children"),
+        Output("description-display", "children"),
+        Output("conversation-display", "children"),
+        Output("text-clean-display", "children"),
+    ],
+    Input("scatter-plot", "clickData"),
+)
+def update_point_info(clickData):
+    if clickData:
+        selected_uuid = clickData["points"][0]["customdata"][2]
+        conversation_id = clickData["points"][0]["customdata"][0]
+
         selected_point = data_viz[data_viz["uuid"] == selected_uuid].iloc[0]
         name = f"Topic name: {selected_point['Name']}"
         description = f"Topic description: {selected_point.get('Description', 'N/A')}"
         conversation = f"Conversation ID: {conversation_id}"
         text_clean = f"User response: {selected_point['text_clean']}"
 
-        return table_data, style_data_conditional, name, description, conversation, text_clean, selected_index
+        return name, description, conversation, text_clean
 
-    return [], [], "Topic name: N/A", "Topic description: N/A", "Conversation ID: N/A", "User response: N/A", None
+    return "Topic name: N/A", "Topic description: N/A", "Conversation ID: N/A", "User response: N/A"

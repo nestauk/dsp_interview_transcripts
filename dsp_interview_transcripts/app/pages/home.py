@@ -2,27 +2,12 @@ import dash
 
 from dash import dcc
 from dash import html
+from style import CONTENT_STYLE
+from style import NESTA_COLOURS
+from style import SIDEBAR_STYLE
 
 
 dash.register_page(__name__, path="/")
-
-# Sidebar layout
-SIDEBAR_STYLE = {
-    "position": "fixed",
-    "top": 0,
-    "left": 0,
-    "bottom": 0,
-    "width": "16rem",
-    "padding": "2rem 1rem",
-    "background-color": "#f8f9fa",
-}
-
-CONTENT_STYLE = {
-    "margin-left": "18rem",
-    "margin-right": "2rem",
-    "padding": "2rem 1rem",
-}
-
 
 layout = html.Div(
     [
@@ -97,14 +82,6 @@ layout = html.Div(
                      We then also used an LLM (llama3.2) to give each cluster a name and description.
                      """
         ),
-        # html.Ul(
-        #     [
-        #         html.Li("We did some cleaning of the text, for example, grouping together responses that were sent immediately after one another."),
-        #         html.Li("Currently, "),
-        #         html.Li("User Response Mapping: Visualize user responses on a scatter plot."),
-        #         html.Li("Click on Points: Select specific points to view detailed user responses."),
-        #     ]
-        # ),
     ],
     style=CONTENT_STYLE,
 )

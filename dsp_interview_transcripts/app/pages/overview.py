@@ -11,34 +11,18 @@ from dash import html
 from data import data_viz
 from data import summary_info
 from plotly.subplots import make_subplots
+from style import CONTENT_STYLE
+from style import NESTA_COLOURS
+from style import SIDEBAR_STYLE
 
 
 dash.register_page(__name__, path="/overview")
-
-# Sidebar layout
-SIDEBAR_STYLE = {
-    "position": "fixed",
-    "top": 0,
-    "left": 0,
-    "bottom": 0,
-    "width": "16rem",
-    "padding": "2rem 1rem",
-    "background-color": "#f8f9fa",
-}
-
-CONTENT_STYLE = {
-    "margin-left": "18rem",
-    "margin-right": "2rem",
-    "padding": "2rem 1rem",
-}
 
 sentiment_colors = {"Negative": "red", "Neutral": "gray", "Positive": "green"}
 
 # Order topics by prevalence
 name_order = data_viz["Name"].value_counts().index.tolist()
 print(name_order)
-
-# summary_info_sorted = summary_info.set_index("Name").loc[name_order[1:]].reset_index()
 
 # Calculate sentiment percentages
 sentiment_percentage = pd.crosstab(data_viz["Name"], data_viz["sentiment"], normalize="index") * 100
