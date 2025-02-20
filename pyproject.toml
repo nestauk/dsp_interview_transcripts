@@ -33,8 +33,6 @@ langchain-community = "^0.3.5"
 s3fs = "^2024.10.0"
 plac = "^1.4.3"
 discovery-utils = {git = "https://github.com/nestauk/discovery_utils.git", rev = "73-refactoring-utils"}
-pre-commit = "^4.1.0"
-yamllint = "^1.35.1"
 
 [tool.poetry.group.test]
 optional = true
@@ -55,7 +53,7 @@ flake8-print = "^4.0.0"                   # Check for print statements in python
 flake8-docstrings = "^1.6.0"              # Include checks provided by pep257.
 flake8-annotations = "^2.8.0"             # check for presence of type annotations in function definitions.
 isort = "^5.10.1"                         # Sort imports
-yamllint = "^1.26.3"                      # Linter for YAML files
+yamllint = ">=1.26.3"                      # Linter for YAML files
 bandit = {version = "^1.7.4", extras = ["toml"]}  # Security linter
 pre-commit = ">=2.18.1"                   # Runs a pipeline before commiting code
 black = "^22.6.0"                         # Python style checks
