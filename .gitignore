@@ -183,3 +183,8 @@ poetry.lock
 # quarto
 *.html
 dsp_interview_transcripts/pipeline/bit_france/report/bit_france_report_files/*
+
+#image formats
+*.gif
+*.png
+*.mp4

@@ -42,13 +42,22 @@ MIN_CLUSTER_SIZE = 20
 def main(production: bool = False):
 
     MIN_LEN = config["min_length"]
+    PROJECT = config["project"]
 
     if production:
-        OUT_PATH_FULL_DATA = config["prod_paths"]["interim_data_w_topics_s3_path"].format(MIN_LEN=MIN_LEN)
-        OUT_PATH_REP_DOCS = config["prod_paths"]["interim_representative_docs_s3_path"].format(MIN_LEN=MIN_LEN)
+        OUT_PATH_FULL_DATA = f"{PROJECT}/" + config["prod_paths"]["interim_data_w_topics_s3_path"].format(
+            MIN_LEN=MIN_LEN
+        )
+        OUT_PATH_REP_DOCS = f"{PROJECT}/" + config["prod_paths"]["interim_representative_docs_s3_path"].format(
+            MIN_LEN=MIN_LEN
+        )
     else:
-        OUT_PATH_FULL_DATA = config["test_paths"]["interim_data_w_topics_s3_path"].format(MIN_LEN=MIN_LEN)
-        OUT_PATH_REP_DOCS = config["test_paths"]["interim_representative_docs_s3_path"].format(MIN_LEN=MIN_LEN)
+        OUT_PATH_FULL_DATA = f"{PROJECT}/" + config["test_paths"]["interim_data_w_topics_s3_path"].format(
+            MIN_LEN=MIN_LEN
+        )
+        OUT_PATH_REP_DOCS = f"{PROJECT}/" + config["test_paths"]["interim_representative_docs_s3_path"].format(
+            MIN_LEN=MIN_LEN
+        )
 
     user_messages = get_cleaned_data(production=production)
 
@@ -80,9 +89,9 @@ def main(production: bool = False):
 
     summary_info = topic_model.get_topic_info()
     if production:
-        bertopic_summary_outpath = "interim/bertopic_topic_info.csv"
+        bertopic_summary_outpath = f"{PROJECT}/" + "interim/bertopic_topic_info.csv"
     else:
-        bertopic_summary_outpath = "test/interim/bertopic_topic_info.csv"
+        bertopic_summary_outpath = f"{PROJECT}/" + "test/interim/bertopic_topic_info.csv"
     save_to_s3(
         S3_BUCKET,
         summary_info,

@@ -254,11 +254,13 @@ def create_context(row: pd.Series, df: pd.DataFrame) -> str:
 def main(production: bool = False):
 
     MIN_LEN = config["min_length"]
+    PROJECT = config["project"]
     if production:
         DATA_OUT_PATH = config["prod_paths"]["interim_processed_data_s3_path"]
     else:
         DATA_OUT_PATH = config["test_paths"]["interim_processed_data_s3_path"]
     DATA_OUT_PATH = DATA_OUT_PATH.format(MIN_LEN=MIN_LEN)
+    DATA_OUT_PATH = f"{PROJECT}/{DATA_OUT_PATH}"
 
     interviews_df = get_raw_transcripts()
     interviews_df = clean_data(interviews_df)

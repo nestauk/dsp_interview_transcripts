@@ -36,10 +36,12 @@ class NameDescription(BaseModel):
 def main(production: bool = False):
 
     MIN_LEN = config["min_length"]
+    PROJECT = config["project"]
+
     if production:
-        OUT_PATH = config["prod_paths"]["interim_w_names_s3_path"].format(MIN_LEN=MIN_LEN)
+        OUT_PATH = f"{PROJECT}/" + config["prod_paths"]["interim_w_names_s3_path"].format(MIN_LEN=MIN_LEN)
     else:
-        OUT_PATH = config["test_paths"]["interim_w_names_s3_path"].format(MIN_LEN=MIN_LEN)
+        OUT_PATH = f"{PROJECT}/" + config["test_paths"]["interim_w_names_s3_path"].format(MIN_LEN=MIN_LEN)
 
     llm_chain = get_chain(
         prompt_path=PROMPT_PATH,
