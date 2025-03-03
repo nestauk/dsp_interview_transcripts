@@ -7,12 +7,7 @@ from dsp_interview_transcripts.getters.data_getters import load_s3_data
 PROJECT = config["project"]
 RAW_FILE = config["raw_filepath"]
 
-if PROJECT == "heatflex":
-    project = "heatflex/"
-else:
-    project = ""
-
-RAW_PATH = f"{project}raw/{RAW_FILE}"
+RAW_PATH = f"{PROJECT}/raw/{RAW_FILE}"
 
 
 def get_raw_transcripts():
