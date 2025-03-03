@@ -50,7 +50,9 @@ def get_min_radius(
         # Order the matrix so that the 0th column is the distance to itself,
         # 1 column is distance to closest neighbour, 2 column is the distance to the second closest neighbour, etc.
         sorted_distances = np.sort(distances, axis=1)
-        radii = sorted_distances[:, k_neighbours]
+        # Ensure k_neighbours does not exceed available neighbors
+        valid_k = min(k_neighbours, distances.shape[1] - 1)
+        radii = sorted_distances[:, valid_k]
 
         # Store minimum radii for this cluster
         radius_distributions[cluster_label] = radii
