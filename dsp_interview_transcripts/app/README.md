@@ -8,11 +8,13 @@ The files you need are:
 
 * [s3://dsp-qualfml/raw/qual_af_transcripts_cleaned.csv](https://eu-west-2.console.aws.amazon.com/s3/object/dsp-qualfml?region=eu-west-2&bucketType=general&prefix=raw/qual_af_transcripts_cleaned.csv)
 
-* [s3://dsp-qualfml/interim/user_messages_min_len_9_w_sentiment_topics_representative_docs.csv](https://eu-west-2.console.aws.amazon.com/s3/object/dsp-qualfml?region=eu-west-2&bucketType=general&prefix=interim/user_messages_min_len_9_w_sentiment_topics_representative_docs.csv)
+* [s3://dsp-qualfml/test/interim/user_messages_min_len_9_w_sentiment_topics_representative_docs.csv](https://eu-west-2.console.aws.amazon.com/s3/object/dsp-qualfml?region=eu-west-2&bucketType=general&prefix=interim/user_messages_min_len_9_w_sentiment_topics_representative_docs.csv)
 
-* [s3://dsp-qualfml/interim/user_messages_min_len_9_w_sentiment_topics.csv](https://eu-west-2.console.aws.amazon.com/s3/object/dsp-qualfml?region=eu-west-2&bucketType=general&prefix=interim/user_messages_min_len_9_w_sentiment_topics.csv)
+* [s3://dsp-qualfml/test/interim/user_messages_min_len_9_w_sentiment_topics.csv](https://eu-west-2.console.aws.amazon.com/s3/object/dsp-qualfml?region=eu-west-2&bucketType=general&prefix=interim/user_messages_min_len_9_w_sentiment_topics.csv)
 
-* [s3://dsp-qualfml/interim/user_messages_min_len_9_w_sentiment_topics_with_names_descriptions.csv](https://eu-west-2.console.aws.amazon.com/s3/object/dsp-qualfml?region=eu-west-2&bucketType=general&prefix=interim/user_messages_min_len_9_w_sentiment_topics_with_names_descriptions.csv)
+* [s3://dsp-qualfml/test/interim/user_messages_min_len_9_w_sentiment_topics_with_names_descriptions.csv](https://eu-west-2.console.aws.amazon.com/s3/object/dsp-qualfml?region=eu-west-2&bucketType=general&prefix=interim/user_messages_min_len_9_w_sentiment_topics_with_names_descriptions.csv)
+
+* [s3://dsp-qualfml/test/final/summary_info.csv](https://eu-west-2.console.aws.amazon.com/s3/object/dsp-qualfml?region=eu-west-2&bucketType=general&prefix=test/final/summary_info.csv)
 
 If we continue the app long-term, we will set up a service account to read data from s3 directly but for now you need to download and store the data locally.
 
