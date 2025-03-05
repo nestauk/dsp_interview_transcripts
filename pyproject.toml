@@ -36,7 +36,7 @@ python-docx = "^1.1.2"
 sentencepiece = "^0.2.0"
 quarto = "^0.1.0"
 langchain-community = "^0.3.13"
-
+discovery-utils = {git = "https://github.com/nestauk/discovery_utils.git", rev = "78-mission-radar-prototype"}
 
 [tool.poetry.group.test]
 optional = true
@@ -59,7 +59,7 @@ flake8-annotations = "^2.8.0"             # check for presence of type annotatio
 isort = "^5.10.1"                         # Sort imports
 yamllint = "^1.26.3"                      # Linter for YAML files
 bandit = {version = "^1.7.4", extras = ["toml"]}  # Security linter
-pre-commit = "^2.18.1"                    # Runs a pipeline before commiting code
+pre-commit = "^2.18.1"                   # Runs a pipeline before commiting code
 black = "^22.6.0"                         # Python style checks
 
 
