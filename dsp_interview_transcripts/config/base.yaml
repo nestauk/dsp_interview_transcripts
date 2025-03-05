@@ -13,6 +13,11 @@ questions: ["What, if anything, do you know about the Boiler Upgrade Scheme? If 
             "Is there anything we've talked about you'd like to discuss further?"]
 min_length: 9
 raw_filepath: "AI scripts 18_02_25.csv"
+prompt_path: "heatflex_prompt.txt"
+topic_modelling_params:
+  selection: "leaf"
+  min_cluster_size: 10
+  reduction: "embeddings"
 test_paths:
   interim_processed_data_s3_path: "test/interim/user_messages_min_len_{MIN_LEN}_w_sentiment.csv"
   interim_data_w_topics_s3_path: "test/interim/user_messages_min_len_{MIN_LEN}_w_sentiment_topics.csv"

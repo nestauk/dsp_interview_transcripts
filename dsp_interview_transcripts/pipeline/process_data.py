@@ -251,6 +251,7 @@ def create_context(row: pd.Series, df: pd.DataFrame) -> str:
         return " | ".join(prev_rows["text_clean"])
 
 
+@plac.annotations(production=("Run in production mode if True, otherwise in test mode", "flag", "production"))
 def main(production: bool = False):
 
     MIN_LEN = config["min_length"]

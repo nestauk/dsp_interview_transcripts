@@ -76,6 +76,7 @@ def create_scatterplot(
     return fig
 
 
+@plac.annotations(production=("Run in production mode if True, otherwise in test mode", "flag", "production"))
 def main(production: bool = False):
 
     PROJECT = config["project"]

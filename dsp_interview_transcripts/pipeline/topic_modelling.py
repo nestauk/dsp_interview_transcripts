@@ -47,7 +47,9 @@ torch.manual_seed(RANDOM_SEED)
 MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 SENTENCE_MODEL = SentenceTransformer("all-MiniLM-L6-v2")
 
-MIN_CLUSTER_SIZE = 20
+MIN_CLUSTER_SIZE = config["topic_modelling_params"]["min_cluster_size"]
+SELECTION_METHOD = config["topic_modelling_params"]["selection"]
+REDUCTION_METHOD = config["topic_modelling_params"]["reduction"]
 MIN_LEN = config["min_length"]
 PROJECT = config["project"]
 # directory for local outputs
@@ -63,9 +65,14 @@ os.makedirs(OUTPATH, exist_ok=True)
     type=str,
     abbrev="r",
 )
-@plac.annotations(production=("Run script in production mode if True, otherwise in test mode", "flag", "p"))
+@plac.annotations(
+    production=("Run script in production mode if True, otherwise in test mode", "flag", "production", "p")
+)
 def main(
-    selection="leaf", min_cluster_size=MIN_CLUSTER_SIZE, reduction_strategy="embeddings", production: bool = False
+    selection=SELECTION_METHOD,
+    min_cluster_size=MIN_CLUSTER_SIZE,
+    reduction_strategy=REDUCTION_METHOD,
+    production: bool = False,
 ):
 
     if reduction_strategy == "ctfidf":

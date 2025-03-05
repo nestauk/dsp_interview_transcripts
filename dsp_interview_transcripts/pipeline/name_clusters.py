@@ -23,7 +23,7 @@ from dsp_interview_transcripts.utils.llama_utils import name_topics
 
 MODEL_NAME = "llama3.2"
 TEMPERATURE = 0
-PROMPT_PATH = PROJECT_DIR / "dsp_interview_transcripts/pipeline/prompts/qualaf_prompt.txt"
+PROMPT_PATH = PROJECT_DIR / f"dsp_interview_transcripts/pipeline/prompts/{config['prompt_path']}"
 
 
 class NameDescription(BaseModel):
@@ -33,6 +33,7 @@ class NameDescription(BaseModel):
     description: str = Field(description="Description of this group of documents")
 
 
+@plac.annotations(production=("Run in production mode if True, otherwise in test mode", "flag", "production"))
 def main(production: bool = False):
 
     MIN_LEN = config["min_length"]

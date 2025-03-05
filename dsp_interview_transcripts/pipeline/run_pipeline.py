@@ -19,10 +19,12 @@ script_parent = Path(__file__).parent
 from dsp_interview_transcripts import logger
 
 
-@plac.annotations(production=("Run all scripts in production mode if True, otherwise in test mode", "flag", "p"))
+@plac.annotations(
+    production=("Run all scripts in production mode if True, otherwise in test mode", "flag", "production")
+)
 def main(production: bool = False):
 
-    mode_arg = "--production" if production else ""
+    mode_arg = "-production" if production else ""
 
     # Run each script with the production argument
     logger.info("Running process_data.py...")
