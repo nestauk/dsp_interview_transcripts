@@ -161,7 +161,7 @@ def main(
     topic_lookup = summary_info[["Topic", "Name", "Representation"]]
 
     df_vis = pd.DataFrame(embeddings_2d, columns=["x", "y"])
-    df_vis["topic"] = topics
+    df_vis["topic"] = new_topics
     df_vis = df_vis.merge(topic_lookup, left_on="topic", right_on="Topic", how="left")
     df_vis["doc"] = docs
 

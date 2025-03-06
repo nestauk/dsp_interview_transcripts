@@ -266,6 +266,15 @@ def main(production: bool = False):
     interviews_df = get_raw_transcripts()
     interviews_df = clean_data(interviews_df)
 
+    if PROJECT == "bus":
+        print(f"N interviews before filtering fake participant: {len(interviews_df['conversation'].unique())}")
+        interviews_df = interviews_df[
+            ~interviews_df["conversation"].isin(
+                ["018fc37b-762c-ef4b-17c6-484c83055532", "018fb638-c3c1-fbde-2dad-9f4bdf52aa76"]
+            )
+        ]
+        print(f"N interviews after filtering fake participant: {len(interviews_df['conversation'].unique())}")
+
     logger.info(f"Number of interviews: {len(interviews_df['conversation'].unique())}")
 
     interviews_cleaned_df = (

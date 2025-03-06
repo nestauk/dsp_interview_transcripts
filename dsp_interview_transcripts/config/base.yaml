@@ -1,5 +1,5 @@
 ---
-project: "heatflex"
+project: "bus"
 questions: ["What, if anything, do you know about the Boiler Upgrade Scheme? If you don't know anything about the scheme, just give it your best guess.",
             "What, if anything, do you know about the process of applying for Boiler Upgrade Scheme funding?",
             "What do you think are the eligibility requirements for someone to use this scheme?",
@@ -12,11 +12,11 @@ questions: ["What, if anything, do you know about the Boiler Upgrade Scheme? If 
             "What are some energy-efficient heating systems that you could consider, apart from the one currently in use at your home?",
             "Is there anything we've talked about you'd like to discuss further?"]
 min_length: 9
-raw_filepath: "AI scripts 18_02_25.csv"
-prompt_path: "heatflex_prompt.txt"
+raw_filepath: "qual_af_transcripts.csv"
+prompt_path: "qualaf_prompt.txt"
 topic_modelling_params:
   selection: "leaf"
-  min_cluster_size: 10
+  min_cluster_size: 40
   reduction: "embeddings"
 test_paths:
   interim_processed_data_s3_path: "test/interim/user_messages_min_len_{MIN_LEN}_w_sentiment.csv"
