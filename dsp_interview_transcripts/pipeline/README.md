@@ -1,8 +1,6 @@
 
 # Set up
 
-* Make sure your raw data contains the following columns: ...
-
 * Create a new directory in the S3 bucket `dsp-qualfml` with a short name for your project. Record this name as `project` in the config.
 
 * Upload your raw data to `s3://dsp-qualfml/<your-project>/raw/`.
