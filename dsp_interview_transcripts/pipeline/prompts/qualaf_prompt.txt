@@ -7,8 +7,8 @@ One of the clusters contains the following user responses from the interviews:
 {docs}
 The cluster is described by the following keywords: {keywords}
 
-Based on the information above, please provide a name and summary for the cluster as a JSON object with two fields:
-- name: A short, informative name for the cluster that incorporates some of the keywords provided
-- description: A summary of topics and technologies discussed as well as views of users within the cluster. You can include positive and negative sentiments they express, reasons for their views, their knowledge levels, and any other relevant information.
+Based on the information above, please provide a name and description for the cluster as a JSON object with two fields:
+- name: A short, informative name for the cluster that must incorporate at least some of the keywords provided. Avoid including "Boiler upgrade scheme" or "eligibility" in the name.
+- description: A summary of topics and technologies discussed, and views of users within the cluster. You can include positive and negative sentiments they express, reasons for their views, their knowledge levels, and any other relevant information.
 
 Provide nothing except for this JSON dict.
