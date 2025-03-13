@@ -15,9 +15,10 @@ import pandas as pd
 
 # S3_BUCKET = os.environ.get("S3_BUCKET")
 
-rep_docs = pd.read_csv("data/user_messages_min_len_9_w_sentiment_topics_representative_docs.csv")
-data = pd.read_csv("data/user_messages_min_len_9_w_sentiment_topics.csv")
-data_w_names = pd.read_csv("data/user_messages_min_len_9_w_sentiment_topics_with_names_descriptions.csv")
+PROJECT = "heatflex"
+
+data = pd.read_csv(f"data/{PROJECT}/user_messages_min_len_9_w_sentiment_topics.csv")
+data_w_names = pd.read_csv(f"data/{PROJECT}/user_messages_min_len_9_w_sentiment_topics_with_names_descriptions.csv")
 
 data = data.rename(columns={"Name": "Topic_name"})
 
@@ -40,9 +41,8 @@ names = data_viz["Name"].unique().tolist()
 # 0.2 for the noise cluster, otherwise 0.8
 data_viz["opacity"] = data_viz["Name"].apply(lambda Name: 0.8 if Name in names[1:] else 0.2)
 
-transcripts = pd.read_csv("data/qual_af_transcripts_cleaned.csv")
+transcripts = pd.read_csv(f"data/{PROJECT}/{PROJECT}_transcripts_cleaned.csv")
 
-summary_info = pd.read_csv("data/summary_info.csv")[
+summary_info = pd.read_csv(f"data/{PROJECT}/summary_info.csv")[
     ["Name", "Description", "Top words", "N responses in topic"]
 ].drop_duplicates()
-#    'conversation', 'uuid', 'context','text_clean']]
