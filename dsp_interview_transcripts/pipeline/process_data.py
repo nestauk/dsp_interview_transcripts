@@ -257,9 +257,13 @@ def main(production: bool = False):
     MIN_LEN = config["min_length"]
     PROJECT = config["project"]
     if production:
+        CLEANED_RAW_PATH = config["prod_paths"]["cleaned_raw_data_s3_path"]
         DATA_OUT_PATH = config["prod_paths"]["interim_processed_data_s3_path"]
     else:
+        CLEANED_RAW_PATH = config["test_paths"]["cleaned_raw_data_s3_path"]
         DATA_OUT_PATH = config["test_paths"]["interim_processed_data_s3_path"]
+    CLEANED_RAW_PATH = CLEANED_RAW_PATH.format(PROJECT=PROJECT)
+    CLEANED_RAW_PATH = f"{PROJECT}/{CLEANED_RAW_PATH}"
     DATA_OUT_PATH = DATA_OUT_PATH.format(MIN_LEN=MIN_LEN)
     DATA_OUT_PATH = f"{PROJECT}/{DATA_OUT_PATH}"
 
@@ -288,6 +292,9 @@ def main(production: bool = False):
         # Group together consecutive responses by the same role
         .pipe(concatenate_consecutive_roles)
     )
+
+    logger.info("Saving cleaned raw data...")
+    save_to_s3(S3_BUCKET, interviews_cleaned_df, CLEANED_RAW_PATH)
 
     questions_df = pd.DataFrame(enumerate(QUESTIONS), columns=["q_number", "question"])
 
