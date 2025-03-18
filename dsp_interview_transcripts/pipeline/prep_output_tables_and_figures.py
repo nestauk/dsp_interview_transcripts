@@ -76,18 +76,21 @@ def create_scatterplot(
     return fig
 
 
+@plac.annotations(production=("Run in production mode if True, otherwise in test mode", "flag", "production"))
 def main(production: bool = False):
 
+    PROJECT = config["project"]
+
     if production:
-        OUTPUT_PATH_FULL_DATA = config["prod_paths"]["final_full_data_s3_path"]
-        OUTPUT_PATH_SUMMARY = config["prod_paths"]["final_summary_info_s3_path"]
+        OUTPUT_PATH_FULL_DATA = f"{PROJECT}/" + config["prod_paths"]["final_full_data_s3_path"]
+        OUTPUT_PATH_SUMMARY = f"{PROJECT}/" + config["prod_paths"]["final_summary_info_s3_path"]
         LOCAL_OUTPUTS = PROJECT_DIR / "outputs/final"
-        S3_FIGURES = config["prod_paths"]["final_figures_s3_path"]
+        S3_FIGURES = f"{PROJECT}/" + config["prod_paths"]["final_figures_s3_path"]
     else:
-        OUTPUT_PATH_FULL_DATA = config["test_paths"]["final_full_data_s3_path"]
-        OUTPUT_PATH_SUMMARY = config["test_paths"]["final_summary_info_s3_path"]
+        OUTPUT_PATH_FULL_DATA = f"{PROJECT}/" + config["test_paths"]["final_full_data_s3_path"]
+        OUTPUT_PATH_SUMMARY = f"{PROJECT}/" + config["test_paths"]["final_summary_info_s3_path"]
         LOCAL_OUTPUTS = PROJECT_DIR / "outputs/final/test"
-        S3_FIGURES = config["test_paths"]["final_figures_s3_path"]
+        S3_FIGURES = f"{PROJECT}/" + config["test_paths"]["final_figures_s3_path"]
 
     # Create the local output directory if it doesn't exist
     LOCAL_OUTPUTS.mkdir(parents=True, exist_ok=True)

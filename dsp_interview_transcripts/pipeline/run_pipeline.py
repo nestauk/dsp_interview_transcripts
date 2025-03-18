@@ -19,10 +19,12 @@ script_parent = Path(__file__).parent
 from dsp_interview_transcripts import logger
 
 
-@plac.annotations(production=("Run all scripts in production mode if True, otherwise in test mode", "flag", "p"))
+@plac.annotations(
+    production=("Run all scripts in production mode if True, otherwise in test mode", "flag", "production")
+)
 def main(production: bool = False):
 
-    mode_arg = "--production" if production else ""
+    mode_arg = "-production" if production else ""
 
     # Run each script with the production argument
     logger.info("Running process_data.py...")
@@ -32,7 +34,7 @@ def main(production: bool = False):
     logger.info("Running name_clusters.py...")
     subprocess.run(f"python {script_parent / 'name_clusters.py'} {mode_arg}", shell=True)
     logger.info("Running prep_output_tables.py...")
-    subprocess.run(f"python {script_parent / 'prep_output_tables.py'} {mode_arg}", shell=True)
+    subprocess.run(f"python {script_parent / 'prep_output_tables_and_figures.py'} {mode_arg}", shell=True)
 
     # # Top down approach
     # logger.info("Running top_down_analysis.py...")

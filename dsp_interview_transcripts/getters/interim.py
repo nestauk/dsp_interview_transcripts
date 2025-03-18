@@ -5,12 +5,14 @@ from dsp_interview_transcripts.getters.data_getters import load_s3_data
 
 
 MIN_LEN = config["min_length"]
+PROJECT = config["project"]
 
 
 def get_data(data_name, production=False, config=config, min_len=MIN_LEN):
     paths_key = "prod_paths" if production else "test_paths"
     s3_path = config[paths_key][f"interim_{data_name}_s3_path"]
     formatted_path = s3_path.format(MIN_LEN=min_len)
+    formatted_path = f"{PROJECT}/{formatted_path}"
     return load_s3_data(S3_BUCKET, formatted_path)
 
 

@@ -167,13 +167,24 @@ data/*
 !data/*.md
 # scrappy outputs from notebooks
 dsp_interview_transcripts/notebooks/outputs/*
+dsp_interview_transcripts/notebooks/*.csv
+dsp_interview_transcripts/notebooks/*.xlsx
 # output data, figures etc
 outputs/*
 !/outputs/*.md
+dsp_interview_transcripts/pipeline/bit_france/outputs/*
 # DS store in any folder
 **/.DS_Store
 
 # data files
 *.csv
 poetry.lock
-poetry.lock
+
+# quarto
+*.html
+dsp_interview_transcripts/pipeline/bit_france/report/bit_france_report_files/*
+
+#image formats
+*.gif
+*.png
+*.mp4

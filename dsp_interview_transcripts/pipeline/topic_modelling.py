@@ -1,3 +1,14 @@
+"""
+Example usage:
+```
+python dsp_interview_transcripts/pipeline/topic_modelling.py -s leaf -c 50 -r embeddings
+```
+or
+```
+python dsp_interview_transcripts/pipeline/topic_modelling.py -s eom -c 50 -r probabilities --production
+```
+"""
+import os
 import random
 
 import numpy as np
@@ -22,6 +33,9 @@ from dsp_interview_transcripts import logger
 from dsp_interview_transcripts.getters.data_getters import save_to_s3
 from dsp_interview_transcripts.getters.interim import get_cleaned_data
 from dsp_interview_transcripts.utils.repr_docs import *
+from dsp_interview_transcripts.utils.topic_modelling import embed_docs
+from dsp_interview_transcripts.utils.topic_modelling import get_proportion_noise
+from dsp_interview_transcripts.utils.topic_modelling import init_topic_model
 
 
 # Set random seeds
@@ -30,92 +44,115 @@ np.random.seed(RANDOM_SEED)
 random.seed(RANDOM_SEED)
 torch.manual_seed(RANDOM_SEED)
 
+MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 SENTENCE_MODEL = SentenceTransformer("all-MiniLM-L6-v2")
 
-MIN_CLUSTER_SIZE = 20
+MIN_CLUSTER_SIZE = config["topic_modelling_params"]["min_cluster_size"]
+SELECTION_METHOD = config["topic_modelling_params"]["selection"]
+REDUCTION_METHOD = config["topic_modelling_params"]["reduction"]
+MIN_LEN = config["min_length"]
+PROJECT = config["project"]
+# directory for local outputs
+OUTPATH = f"{PROJECT_DIR}/outputs/{PROJECT}/"
+os.makedirs(OUTPATH, exist_ok=True)
 
 
-def main(production: bool = False):
+@plac.opt("selection", "Cluster selection method ('eom' or 'leaf')", type=str, abbrev="s")
+@plac.opt("min_cluster_size", "Minimum cluster size for HDBSCAN", type=int, abbrev="c")
+@plac.opt(
+    "reduction_strategy",
+    "Strategy for reducing outliers ('embeddings', 'probabilities', 'distributions', 'ctfidf')",
+    type=str,
+    abbrev="r",
+)
+@plac.annotations(
+    production=("Run script in production mode if True, otherwise in test mode", "flag", "production", "p")
+)
+def main(
+    selection=SELECTION_METHOD,
+    min_cluster_size=MIN_CLUSTER_SIZE,
+    reduction_strategy=REDUCTION_METHOD,
+    production: bool = False,
+):
 
-    MIN_LEN = config["min_length"]
+    if reduction_strategy == "ctfidf":
+        reduction_strategy = "c-tf-idf"
 
     if production:
-        OUT_PATH_FULL_DATA = config["prod_paths"]["interim_data_w_topics_s3_path"].format(MIN_LEN=MIN_LEN)
-        OUT_PATH_REP_DOCS = config["prod_paths"]["interim_representative_docs_s3_path"].format(MIN_LEN=MIN_LEN)
+        OUT_PATH_FULL_DATA = f"{PROJECT}/" + config["prod_paths"]["interim_data_w_topics_s3_path"].format(
+            MIN_LEN=MIN_LEN
+        )
+        OUT_PATH_REP_DOCS = f"{PROJECT}/" + config["prod_paths"]["interim_representative_docs_s3_path"].format(
+            MIN_LEN=MIN_LEN
+        )
     else:
-        OUT_PATH_FULL_DATA = config["test_paths"]["interim_data_w_topics_s3_path"].format(MIN_LEN=MIN_LEN)
-        OUT_PATH_REP_DOCS = config["test_paths"]["interim_representative_docs_s3_path"].format(MIN_LEN=MIN_LEN)
+        OUT_PATH_FULL_DATA = f"{PROJECT}/" + config["test_paths"]["interim_data_w_topics_s3_path"].format(
+            MIN_LEN=MIN_LEN
+        )
+        OUT_PATH_REP_DOCS = f"{PROJECT}/" + config["test_paths"]["interim_representative_docs_s3_path"].format(
+            MIN_LEN=MIN_LEN
+        )
 
     user_messages = get_cleaned_data(production=production)
 
-    empty_reduction_model = BaseDimensionalityReduction()
-
-    umap_model = UMAP(
-        n_neighbors=15,
-        n_components=50,
-        min_dist=0.1,
-        metric="cosine",
-        random_state=RANDOM_SEED,
-    )
-
-    hdbscan_model = HDBSCAN(
-        min_cluster_size=MIN_CLUSTER_SIZE,
-        metric="euclidean",
-        cluster_selection_method="eom",
-        prediction_data=True,
-    )
-
-    vectorizer_model = TfidfVectorizer(
-        stop_words="english",
-        min_df=1,
-        max_df=0.85,
-        ngram_range=(1, 3),
-    )
-
-    # KeyBERT
-    keybert_model = KeyBERTInspired()
-
-    # MMR
-    mmr_model = MaximalMarginalRelevance(diversity=0.3)
-
-    # All representation models
-    representation_model = {
-        "KeyBERT": keybert_model,
-        "MMR": mmr_model,
-    }
-
-    topic_model = BERTopic(
-        # Pipeline models
-        embedding_model="sentence-transformers/all-MiniLM-L6-v2",
-        umap_model=empty_reduction_model,
-        hdbscan_model=hdbscan_model,
-        vectorizer_model=vectorizer_model,
-        representation_model=representation_model,
-        # Hyperparameters
-        top_n_words=10,
-        verbose=True,
-        calculate_probabilities=True,
-    )
-
     docs = user_messages["text_clean"].tolist()
-    logger.info("Embedding user messages...")
-    embeddings = SENTENCE_MODEL.encode(docs, show_progress_bar=True)
+    docs, embeddings = embed_docs(docs, SENTENCE_MODEL, save=False)
 
-    embeddings_50d = umap_model.fit_transform(embeddings)
+    topic_model, vectorizer_model, representation_model = init_topic_model(
+        stop_words="english",
+        min_cluster_size=min_cluster_size,
+        hdbscan_selection_method=selection,
+        embedding_model=MODEL_NAME,
+        seed=RANDOM_SEED,
+        empty_reduction=False,
+    )
 
-    normalized_embeddings = normalize(embeddings_50d, norm="l2")
+    topics, probs = topic_model.fit_transform(docs, embeddings)
 
-    topics, _ = topic_model.fit_transform(docs, normalized_embeddings)
+    print(f"Unique topics before reduction: {set(topics)}")
+    print(f"Reduction strategy: {reduction_strategy}")
 
-    summary_info = topic_model.get_topic_info()
-    if production:
-        bertopic_summary_outpath = "interim/bertopic_topic_info.csv"
+    if reduction_strategy == "probabilities":
+        new_topics = topic_model.reduce_outliers(docs, topics, probabilities=probs, strategy=reduction_strategy)
     else:
-        bertopic_summary_outpath = "test/interim/bertopic_topic_info.csv"
+        new_topics = topic_model.reduce_outliers(docs, topics, strategy=reduction_strategy)
+
+    topic_model.update_topics(
+        docs,
+        topics=new_topics,
+        top_n_words=10,
+        n_gram_range=(1, 3),
+        vectorizer_model=vectorizer_model,
+        ctfidf_model=None,
+        representation_model=representation_model,
+    )
+
+    # Default BERTopic scatterplot
+    fig = topic_model.visualize_documents(docs, embeddings=embeddings)
+    output_path = f"{OUTPATH}bertopic_visualization_selection_{selection}_min_length_{MIN_LEN}_min_cluster_{min_cluster_size}_red_{reduction_strategy}.html"
+    fig.write_html(output_path)
+
+    # Default BERTopic summary info
+    summary_info = topic_model.get_topic_info()
+    # save locally
+    topic_info_path = f"{OUTPATH}bertopic_topic_info_selection_{selection}_min_length_{MIN_LEN}_min_cluster_{min_cluster_size}_red_{reduction_strategy}.csv"
+    summary_info.to_csv(topic_info_path, index=False)
+    # save to s3
+    if production:
+        bertopic_summary_outpath = f"{PROJECT}/" + "interim/bertopic_topic_info.csv"
+    else:
+        bertopic_summary_outpath = f"{PROJECT}/" + "test/interim/bertopic_topic_info.csv"
     save_to_s3(
         S3_BUCKET,
         summary_info,
         bertopic_summary_outpath,
+    )
+
+    # What proportion is noise?
+    proportion_noise = get_proportion_noise(
+        new_topics,
+        save=True,
+        outpath=f"{OUTPATH}noise_prop_selection_{selection}_min_length_{MIN_LEN}_min_cluster_{min_cluster_size}_red_{reduction_strategy}.txt",
     )
 
     umap_2d = UMAP(random_state=RANDOM_SEED, n_components=2)
@@ -124,7 +161,7 @@ def main(production: bool = False):
     topic_lookup = summary_info[["Topic", "Name", "Representation"]]
 
     df_vis = pd.DataFrame(embeddings_2d, columns=["x", "y"])
-    df_vis["topic"] = topics
+    df_vis["topic"] = new_topics
     df_vis = df_vis.merge(topic_lookup, left_on="topic", right_on="Topic", how="left")
     df_vis["doc"] = docs
 
@@ -142,14 +179,14 @@ def main(production: bool = False):
     unique_conversations_per_topic.columns = ["Topic", "N_users"]
     logger.info(f"N users in each topic: {unique_conversations_per_topic}")
 
-    df_vis["norm_embedding"] = list(normalized_embeddings)
+    df_vis["embedding"] = list(embeddings)
 
     logger.info("Saving data...")
     save_to_s3(S3_BUCKET, df_vis, OUT_PATH_FULL_DATA)
 
     # save most representative documents
     df_vis_no_noise = df_vis[df_vis["topic"] != -1]
-    _, clustered_data = get_min_radius(df_vis_no_noise, k_neighbours=10)
+    _, clustered_data = get_min_radius(df_vis_no_noise, k_neighbours=10, embedding_col="embedding")
 
     clustered_data["quartile"] = clustered_data.groupby("topic")["radius_10"].transform(
         lambda x: pd.qcut(x, q=4, labels=["1st", "2nd", "3rd", "greater than 3rd"])

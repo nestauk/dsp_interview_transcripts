@@ -6,7 +6,7 @@ import altair as alt
 import pandas as pd
 
 
-opacity_condition = alt.condition(alt.datum.Topic == -1, alt.value(0.1), alt.value(0.6))
+OPACITY_CONDITION = alt.condition(alt.datum.Topic == -1, alt.value(0.1), alt.value(0.6))
 
 
 def create_scatterplot(
@@ -54,7 +54,7 @@ def create_scatterplot(
                 axis=alt.Axis(ticks=False, labels=False, title=None, grid=False),
             ),
             color=color,
-            opacity=opacity_condition,  # Ensure opacity_condition is defined elsewhere
+            opacity=OPACITY_CONDITION,
             tooltip=tooltip,
         )
         .properties(width=900, height=600)

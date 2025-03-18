@@ -1,4 +1,5 @@
 ---
+project: "heatflex"
 questions: ["What, if anything, do you know about the Boiler Upgrade Scheme? If you don't know anything about the scheme, just give it your best guess.",
             "What, if anything, do you know about the process of applying for Boiler Upgrade Scheme funding?",
             "What do you think are the eligibility requirements for someone to use this scheme?",
@@ -11,7 +12,14 @@ questions: ["What, if anything, do you know about the Boiler Upgrade Scheme? If 
             "What are some energy-efficient heating systems that you could consider, apart from the one currently in use at your home?",
             "Is there anything we've talked about you'd like to discuss further?"]
 min_length: 9
+raw_filepath: "AI scripts 18_02_25.csv"
+prompt_path: "heatflex_prompt.txt"
+topic_modelling_params:
+  selection: "leaf"
+  min_cluster_size: 10
+  reduction: "embeddings"
 test_paths:
+  cleaned_raw_data_s3_path: "test/raw/{PROJECT}_transcripts_cleaned.csv"
   interim_processed_data_s3_path: "test/interim/user_messages_min_len_{MIN_LEN}_w_sentiment.csv"
   interim_data_w_topics_s3_path: "test/interim/user_messages_min_len_{MIN_LEN}_w_sentiment_topics.csv"
   interim_representative_docs_s3_path: "test/interim/user_messages_min_len_{MIN_LEN}_w_sentiment_topics_representative_docs.csv"
@@ -20,6 +28,7 @@ test_paths:
   final_summary_info_s3_path: "test/final/summary_info.csv"
   final_figures_s3_path: "test/figures"
 prod_paths:
+  cleaned_raw_data_s3_path: "raw/{PROJECT}_transcripts_cleaned.csv"
   interim_processed_data_s3_path: "interim/user_messages_min_len_{MIN_LEN}_w_sentiment.csv"
   interim_data_w_topics_s3_path: "interim/user_messages_min_len_{MIN_LEN}_w_sentiment_topics.csv"
   interim_representative_docs_s3_path: "interim/user_messages_min_len_{MIN_LEN}_w_sentiment_topics_representative_docs.csv"
