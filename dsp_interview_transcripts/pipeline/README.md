@@ -3,7 +3,7 @@
 
 * Create a new directory in the S3 bucket `dsp-qualfml` with a short name for your project. Record this name as `project` in the config.
 
-* Upload your raw data to `s3://dsp-qualfml/<your-project>/raw/`.
+* Upload your raw data to `s3://dsp-qualfml/<your-project>/raw/`. Must contain the following columns: `uuid` (unique index of the message); `timestamp`; `conversation` (identifier for the user's conversation with the bot); `role` (`USER` or `BOT`); `text`; `transcript` (in case audio message was used)
 
 * Install [Ollama](https://ollama.com/) according to your operating system's instructions. Install [Llama3.2](https://ollama.com/library/llama3.2) (defaults to 3B) by running in your terminal `ollama pull llama3.2`. You can get ollama up and running by running `ollama serve` in the terminal.
 

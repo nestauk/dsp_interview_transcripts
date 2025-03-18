@@ -34,7 +34,7 @@ def main(production: bool = False):
     logger.info("Running name_clusters.py...")
     subprocess.run(f"python {script_parent / 'name_clusters.py'} {mode_arg}", shell=True)
     logger.info("Running prep_output_tables.py...")
-    subprocess.run(f"python {script_parent / 'prep_output_tables.py'} {mode_arg}", shell=True)
+    subprocess.run(f"python {script_parent / 'prep_output_tables_and_figures.py'} {mode_arg}", shell=True)
 
     # # Top down approach
     # logger.info("Running top_down_analysis.py...")
