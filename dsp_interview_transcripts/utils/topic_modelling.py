@@ -1,3 +1,9 @@
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Tuple
+from typing import Union
+
 import numpy as np
 
 from bertopic import BERTopic
@@ -15,7 +21,21 @@ from umap import UMAP
 from dsp_interview_transcripts import logger
 
 
-def embed_docs(docs, model, save: bool, outpath="embeddings.npy"):
+def embed_docs(
+    docs: List[str], model: Optional[SentenceTransformer] = None, save: bool = False, outpath: str = "embeddings.npy"
+) -> Tuple[List[str], np.ndarray]:
+    """Embeds a list of documents using a SentenceTransformer model.
+    Saves these to the local path specified as `outpath`.
+
+    Args:
+        docs (List[str]): List of text documents
+        model (Optional[SentenceTransformer], optional): SentenceTransformer model to use. Defaults to None.
+        save (bool, optional): Do you want the embeddings saved as `npy`? Defaults to False.
+        outpath (str, optional): Local path for saving the embeddings - only used if `save==True`. Defaults to "embeddings.npy".
+
+    Returns:
+        Tuple[List[str], np.ndarray]: The input documents and their embeddings.
+    """
     logger.info("Embedding user messages...")
 
     if model is None:
@@ -28,8 +48,28 @@ def embed_docs(docs, model, save: bool, outpath="embeddings.npy"):
 
 
 def init_topic_model(
-    stop_words, min_cluster_size, hdbscan_selection_method, embedding_model, seed=42, empty_reduction=False
-):
+    stop_words: Union[str, List[str]],
+    min_cluster_size: int,
+    hdbscan_selection_method: str,
+    embedding_model: SentenceTransformer,
+    seed: int = 42,
+    empty_reduction: bool = False,
+) -> Tuple[BERTopic, TfidfVectorizer, Dict[str, Union[KeyBERTInspired, MaximalMarginalRelevance]]]:
+    """Initializes and returns a BERTopic model along with vectorizer and representation models.
+    The representation model and vectorizer can be reused later for noise reduction.
+
+    Args:
+        stop_words (Union[str, List[str]]): Stopwords to use for the vectorizer
+        min_cluster_size (int): The smallest size of a cluster with HDBSCAN
+        hdbscan_selection_method (str): "eom" or "leaf"
+        embedding_model (SentenceTransformer): SentenceTransformer model to use for embeddings
+        seed (int, optional): Random seed. Defaults to 42.
+        empty_reduction (bool, optional): You can specify an empty reduction model if you have already reduced the embeddings. Defaults to False and allowing BERTopic to do the reduction.
+
+    Returns:
+        Tuple[BERTopic, TfidfVectorizer, Dict[str, Union[KeyBERTInspired, MaximalMarginalRelevance]]]:
+            BERTopic model, vectorizer model, and representation models
+    """
 
     if empty_reduction:
         reduction_model = BaseDimensionalityReduction()
@@ -85,12 +125,21 @@ def init_topic_model(
     return topic_model, vectorizer_model, representation_model
 
 
-def get_proportion_noise(topics, save: bool, outpath=None):
+def get_proportion_noise(topics: List[int], save: bool = False, outpath: Optional[str] = None) -> float:
+    """Calculates the proportion of noise in a list of topics.
+
+    Args:
+        topics (List[int]): List of topic labels of datapoints (i.e. not the unique topics; the labels for all data)
+        save (bool, optional): Do you want to save the proportion of noise to a file? Defaults to False.
+        outpath (Optional[str], optional): Local path for saving the proportion of noise. Defaults to None.
+
+    Returns:
+        float: Proportion of noise in the list of topics
+    """
     total_elements = len(topics)
     count_noise = topics.count(-1)
     proportion_noise = count_noise / total_elements
     logger.info(f"{proportion_noise}")
-    # noise_path = f"{OUTPATH}noise_prop_selection_{selection}_min_length_{min_length}_min_cluster_{min_cluster_size}_red_{reduction_strategy}.txt"
     if save:
         with open(outpath, "w") as f:
             f.write(str(proportion_noise))

@@ -1,3 +1,8 @@
+"""
+Data viz utils for use in quarto reports.
+Could in future be combined with `viz.py` but note that `viz.py` uses Altair whereas these functions use Plotly.
+"""
+
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go

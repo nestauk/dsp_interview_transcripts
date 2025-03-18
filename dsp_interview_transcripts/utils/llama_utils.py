@@ -135,7 +135,35 @@ def format_output_df(
     topic_info: pd.DataFrame,
     results: Dict[str, Dict[str, str]],
     model_name: str,
-):
+) -> pd.DataFrame:
+    """Adds as many columns to the output dataframe as you have requested from the LLM
+    - for example, if you have just requested "name" and "description" fields,
+    you will get back a dataframe with columns "<model-name>_name" and "<model-name>_description".
+
+    `output_fields` can be a list of strings or tuples of strings, where each string is a field name.
+    The option for tuples is because of multilingual cases where the model may not be reliable
+    about which language it returns the field in. If an output field name is provided as a tuple, the values are concatenated
+    using underscores to form the column name.
+
+    If a topic does not exist in `results`, or if an output field is missing for a topic,
+    the corresponding entry in the new column will be None.
+
+    Args:
+        output_fields : Union[List[str], List[Tuple[str, ...]]]
+        A list of output field names, either as strings or tuples of strings.
+    topic_info : pd.DataFrame
+        A DataFrame containing a "Topic" column.
+    results : Dict[str, Dict[str, str]]
+        A dictionary where keys represent topic identifiers, and values are dictionaries
+        mapping output field names to corresponding values.
+    model_name : str
+        A prefix to be used when naming new columns in `topic_info` e.g. "llama3.2".
+
+    Returns:
+        pd.DataFrame
+        The updated `topic_info` DataFrame with new columns named based on `model_name`
+        and `output_fields`, containing mapped values from `results`.
+    """
     for output_group in output_fields:
 
         if isinstance(output_group, str):
