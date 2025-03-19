@@ -169,6 +169,7 @@ data/*
 dsp_interview_transcripts/notebooks/outputs/*
 dsp_interview_transcripts/notebooks/*.csv
 dsp_interview_transcripts/notebooks/*.xlsx
+dsp_interview_transcripts/notebooks/LLM_tests/*.jsonl
 # output data, figures etc
 outputs/*
 !/outputs/*.md
