@@ -1,0 +1,27 @@
+@import url("https://fonts.cdnfonts.com/css/century-gothic");
+html,
+body,
+[class*="css"] {
+  font-family: "Century Gothic";
+}
+:root {
+  --md-primary-fg-color: #18a48c;
+  --md-accent-fg-color: #eb003b;
+}
+
+/* Styling for the tab headers */
+.tab--selected {
+    background-color: #0000FF !important;
+    color: white !important;
+  }
+
+  .tab {
+    background-color: lightgray;  /* Tab background when not selected */
+    color: black;                 /* Tab text color when not selected */
+  }
+
+  /* Hover effect */
+  .tab:hover {
+    background-color: #0000FF;
+    color: white;
+  }
