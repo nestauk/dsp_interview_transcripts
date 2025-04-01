@@ -76,18 +76,21 @@ def create_scatterplot(
     return fig
 
 
+@plac.annotations(production=("Run in production mode if True, otherwise in test mode", "flag", "production"))
 def main(production: bool = False):
 
+    PROJECT = config["project"]
+
     if production:
-        OUTPUT_PATH_FULL_DATA = config["prod_paths"]["final_full_data_s3_path"]
-        OUTPUT_PATH_SUMMARY = config["prod_paths"]["final_summary_info_s3_path"]
+        OUTPUT_PATH_FULL_DATA = f"{PROJECT}/" + config["prod_paths"]["final_full_data_s3_path"]
+        OUTPUT_PATH_SUMMARY = f"{PROJECT}/" + config["prod_paths"]["final_summary_info_s3_path"]
         LOCAL_OUTPUTS = PROJECT_DIR / "outputs/final"
-        S3_FIGURES = config["prod_paths"]["final_figures_s3_path"]
+        S3_FIGURES = f"{PROJECT}/" + config["prod_paths"]["final_figures_s3_path"]
     else:
-        OUTPUT_PATH_FULL_DATA = config["test_paths"]["final_full_data_s3_path"]
-        OUTPUT_PATH_SUMMARY = config["test_paths"]["final_summary_info_s3_path"]
+        OUTPUT_PATH_FULL_DATA = f"{PROJECT}/" + config["test_paths"]["final_full_data_s3_path"]
+        OUTPUT_PATH_SUMMARY = f"{PROJECT}/" + config["test_paths"]["final_summary_info_s3_path"]
         LOCAL_OUTPUTS = PROJECT_DIR / "outputs/final/test"
-        S3_FIGURES = config["test_paths"]["final_figures_s3_path"]
+        S3_FIGURES = f"{PROJECT}/" + config["test_paths"]["final_figures_s3_path"]
 
     # Create the local output directory if it doesn't exist
     LOCAL_OUTPUTS.mkdir(parents=True, exist_ok=True)
@@ -96,22 +99,34 @@ def main(production: bool = False):
     data = get_data_w_topics(production=production)
     data_w_names = get_topic_names(production=production)
 
-    topic_counts = pd.DataFrame(data["Cluster"].value_counts()).reset_index()
+    topic_counts = pd.DataFrame(data["Topic"].value_counts()).reset_index()
     topic_counts = topic_counts.rename(columns={"count": "N responses in topic"})
 
-    data_w_names = data_w_names.rename(columns={"llama3.2_name": "Name", "llama3.2_description": "Description"})
-    data_w_names = pd.merge(data_w_names, topic_counts, left_on="Cluster", right_on="Cluster", how="left")
+    data_w_names = pd.merge(data_w_names, topic_counts, left_on="Topic", right_on="Topic", how="left")
 
     rep_docs = pd.merge(
-        rep_docs, data_w_names[["Cluster", "Name", "Description", "N responses in topic"]], on="Cluster", how="left"
+        rep_docs,
+        data_w_names[["Topic", "llama3.2_name", "llama3.2_description", "N responses in topic"]],
+        on="Topic",
+        how="left",
     )
+    rep_docs = rep_docs.rename(
+        columns={
+            "Name": "keyword_name",
+            "Representation": "Top words",
+            "llama3.2_name": "Name",
+            "llama3.2_description": "Description",
+        }
+    )
+
     save_to_s3(
         S3_BUCKET,
         rep_docs[
             [
                 "Name",
                 "Description",
-                "Top Words",
+                "keyword_name",
+                "Top words",
                 "N responses in topic",
                 "conversation",
                 "uuid",
@@ -123,8 +138,9 @@ def main(production: bool = False):
         OUTPUT_PATH_SUMMARY,
     )
 
+    data = data.rename(columns={"Name": "keyword_name", "Representation": "Top words"})
     data_viz = (
-        data.merge(data_w_names[["Cluster", "Name", "Description"]], on="Cluster", how="left")
+        data.merge(rep_docs[["Topic", "Name", "Description"]], on="Topic", how="left")
         .assign(Name=lambda df: df["Name"].fillna("None"))
         .assign(Description=lambda df: df["Description"].fillna("None"))
     )
@@ -142,7 +158,8 @@ def main(production: bool = False):
         [
             "Name",
             "Description",
-            "Top Words",
+            "keyword_name",
+            "Top words",
             "Representative_of_topic",
             "question",
             "context",
@@ -160,15 +177,13 @@ def main(production: bool = False):
             "sentiment": "predicted_sentiment",
             "Name": "Topic Name",
             "Description": "Topic Description",
-            "Top Words": "Topic Top Words",
+            "Top words": "Topic Top Words",
         }
     ).sort_values(["conversation", "timestamp"])
 
     logger.info("Saving output table...")
 
     save_to_s3(S3_BUCKET, final_df, OUTPUT_PATH_FULL_DATA)
-
-    # final_df.sort_values(["conversation", "timestamp"]).to_csv(OUTPUT_PATH_FULL_DATA, index=False)
 
     # Visualise clusters
     logger.info("Saving figures...")

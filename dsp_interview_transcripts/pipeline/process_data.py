@@ -251,19 +251,33 @@ def create_context(row: pd.Series, df: pd.DataFrame) -> str:
         return " | ".join(prev_rows["text_clean"])
 
 
+@plac.annotations(production=("Run in production mode if True, otherwise in test mode", "flag", "production"))
 def main(production: bool = False):
 
     MIN_LEN = config["min_length"]
+    PROJECT = config["project"]
     if production:
-        CLEAN_PATH = config["prod_paths"]["raw_cleaned_s3_path"]
+        CLEANED_RAW_PATH = config["prod_paths"]["cleaned_raw_data_s3_path"]
         DATA_OUT_PATH = config["prod_paths"]["interim_processed_data_s3_path"]
     else:
-        CLEAN_PATH = config["test_paths"]["raw_cleaned_s3_path"]
+        CLEANED_RAW_PATH = config["test_paths"]["cleaned_raw_data_s3_path"]
         DATA_OUT_PATH = config["test_paths"]["interim_processed_data_s3_path"]
+    CLEANED_RAW_PATH = CLEANED_RAW_PATH.format(PROJECT=PROJECT)
+    CLEANED_RAW_PATH = f"{PROJECT}/{CLEANED_RAW_PATH}"
     DATA_OUT_PATH = DATA_OUT_PATH.format(MIN_LEN=MIN_LEN)
+    DATA_OUT_PATH = f"{PROJECT}/{DATA_OUT_PATH}"
 
     interviews_df = get_raw_transcripts()
     interviews_df = clean_data(interviews_df)
+
+    if PROJECT == "bus":
+        print(f"N interviews before filtering fake participant: {len(interviews_df['conversation'].unique())}")
+        interviews_df = interviews_df[
+            ~interviews_df["conversation"].isin(
+                ["018fc37b-762c-ef4b-17c6-484c83055532", "018fb638-c3c1-fbde-2dad-9f4bdf52aa76"]
+            )
+        ]
+        print(f"N interviews after filtering fake participant: {len(interviews_df['conversation'].unique())}")
 
     logger.info(f"Number of interviews: {len(interviews_df['conversation'].unique())}")
 
@@ -279,7 +293,8 @@ def main(production: bool = False):
         .pipe(concatenate_consecutive_roles)
     )
 
-    save_to_s3(S3_BUCKET, interviews_cleaned_df, CLEAN_PATH)
+    logger.info("Saving cleaned raw data...")
+    save_to_s3(S3_BUCKET, interviews_cleaned_df, CLEANED_RAW_PATH)
 
     questions_df = pd.DataFrame(enumerate(QUESTIONS), columns=["q_number", "question"])
 

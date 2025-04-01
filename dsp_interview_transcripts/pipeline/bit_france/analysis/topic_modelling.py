@@ -1,0 +1,155 @@
+"""
+Example usage:
+```
+python dsp_interview_transcripts/pipeline/bit_france/analysis/topic_modelling.py -s eom -l 9 -c 50
+```
+"""
+
+import os
+import random
+
+import nltk
+import pandas as pd
+import plac
+import torch
+
+from nltk.corpus import stopwords
+from sentence_transformers import SentenceTransformer
+
+from dsp_interview_transcripts import PROJECT_DIR
+from dsp_interview_transcripts import logger
+from dsp_interview_transcripts.utils.repr_docs import *
+from dsp_interview_transcripts.utils.topic_modelling import embed_docs
+from dsp_interview_transcripts.utils.topic_modelling import get_proportion_noise
+from dsp_interview_transcripts.utils.topic_modelling import init_topic_model
+
+
+nltk.download("stopwords")
+nltk.download("punkt")
+
+french_stopwords = stopwords.words("french")
+
+# Set random seeds
+RANDOM_SEED = 42
+from numpy import random as npr
+
+
+npr.seed(RANDOM_SEED)
+random.seed(RANDOM_SEED)
+torch.manual_seed(RANDOM_SEED)
+
+model_name = "dangvantuan/sentence-camembert-large"
+SENTENCE_MODEL = SentenceTransformer(model_name)
+
+
+def prep_data(data, min_length, text_col="text"):
+    # We have to deduplicate because there seems to be at least one duplicate interview
+    data = data.drop_duplicates(subset=[text_col])
+    logger.info(f"N records after deduplication: {len(data)}")
+
+    logger.info(data["role"].value_counts())
+
+    # Isolate just the interviewees
+    speaker_data = data[data["role"] == "INFORMANT"]
+
+    speaker_data["word_count"] = speaker_data[text_col].apply(lambda x: len(x.split()))
+
+    speaker_data_filtered = speaker_data[speaker_data["word_count"] > min_length]
+
+    return speaker_data_filtered
+
+
+@plac.opt("selection", "Cluster selection method ('eom' or 'leaf')", type=str, abbrev="s")
+@plac.opt("min_length", "Minimum length of word count for filtering", type=int, abbrev="l")
+@plac.opt("min_cluster_size", "Minimum cluster size for HDBSCAN", type=int, abbrev="c")
+@plac.opt(
+    "reduction_strategy",
+    "Strategy for reducing outliers ('embeddings', 'probabilities', 'distributions', 'ctfidf')",
+    type=str,
+    abbrev="r",
+)
+def main(selection="eom", min_length=5, min_cluster_size=50, reduction_strategy="embeddings"):
+
+    if reduction_strategy == "ctfidf":
+        reduction_strategy = "c-tf-idf"
+
+    maquettes_df = pd.read_csv(f"{PROJECT_DIR}/data/bit_france/converted/maquettes_df_context.csv")
+
+    professions = ["Décideurs", "Salariés", "Elus"]
+
+    for profession in professions:
+        logger.info(f"Processing the interviews of the {profession} group...")
+        OUTPATH = f"{PROJECT_DIR}/dsp_interview_transcripts/pipeline/bit_france/outputs/{profession}/"
+        os.makedirs(OUTPATH, exist_ok=True)
+
+        data = maquettes_df[maquettes_df["profession"] == profession]
+
+        logger.info(f"N records for {profession}: {len(data)}")
+
+        speaker_data_filtered = prep_data(data, min_length, text_col="context_formatted")
+
+        docs = speaker_data_filtered["context_formatted"].tolist()
+
+        docs, embeddings = embed_docs(
+            docs=docs, model=SENTENCE_MODEL, save=True, outpath=f"{OUTPATH}embeddings_min_length_{min_length}.npy"
+        )
+
+        topic_model, vectorizer_model, representation_model = init_topic_model(
+            stop_words=french_stopwords,
+            min_cluster_size=min_cluster_size,
+            hdbscan_selection_method=selection,
+            embedding_model=model_name,
+            seed=RANDOM_SEED,
+        )
+
+        topics, probs = topic_model.fit_transform(docs, embeddings)
+
+        if reduction_strategy == "probabilities":
+            new_topics = topic_model.reduce_outliers(docs, topics, probabilities=probs, strategy=reduction_strategy)
+        else:
+            new_topics = topic_model.reduce_outliers(docs, topics, strategy=reduction_strategy)
+
+        topic_model.update_topics(
+            docs,
+            topics=new_topics,
+            top_n_words=10,
+            n_gram_range=(1, 3),
+            vectorizer_model=vectorizer_model,
+            ctfidf_model=None,
+            representation_model=representation_model,
+        )
+
+        # Default BERTopic scatterplot
+        fig = topic_model.visualize_documents(docs, embeddings=embeddings)
+        output_path = f"{OUTPATH}bertopic_visualization_selection_{selection}_min_length_{min_length}_min_cluster_{min_cluster_size}_red_{reduction_strategy}.html"
+        fig.write_html(output_path)
+
+        # Default BERTopic summary info
+        topic_info = topic_model.get_topic_info()
+        topic_info_path = f"{OUTPATH}bertopic_topic_info_selection_{selection}_min_length_{min_length}_min_cluster_{min_cluster_size}_red_{reduction_strategy}.csv"
+        topic_info.to_csv(topic_info_path, index=False)
+
+        # What proportion is noise?
+        proportion_noise = get_proportion_noise(
+            new_topics,
+            save=True,
+            outpath=f"{OUTPATH}noise_prop_selection_{selection}_min_length_{min_length}_min_cluster_{min_cluster_size}_red_{reduction_strategy}.txt",
+        )
+
+        speaker_data_filtered["embeddings"] = embeddings.tolist()
+        speaker_data_filtered["topic"] = new_topics
+
+        data_out_path = f"{OUTPATH}speaker_data_topics_selection_{selection}_min_length_{min_length}_min_cluster_{min_cluster_size}_red_{reduction_strategy}.csv"
+        speaker_data_filtered.to_csv(data_out_path, index=False)
+
+        # Check for topics that have a low median word count (although if min_len is high, there won't be any)
+        check_word_count = speaker_data_filtered.groupby("topic").agg(
+            median_word_count=("word_count", "median"), unique_file_names=("file_name", "nunique")
+        )
+        logger.info(check_word_count)
+        word_count_path = f"{OUTPATH}topic_median_word_count_selection_{selection}_min_length_{min_length}_min_cluster_{min_cluster_size}_red_{reduction_strategy}.csv"
+        check_word_count.to_csv(word_count_path, index=False)
+
+
+if __name__ == "__main__":
+    plac.call(main)

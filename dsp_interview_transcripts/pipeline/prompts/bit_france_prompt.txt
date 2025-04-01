@@ -1,0 +1,29 @@
+I have performed text clustering on some interviews where professionals were asked about the occupational risks of sedentary behaviour at
+work, and the challenges organisations face in reducing sedentary behaviour. The professionals were presented with some "maquettes" for
+reducing sedentary behaviour in the workplace, and were asked to provide feedback on them. The interviews were conducted in French.
+
+The clustering was done on texts of the form:
+```
+INTERVIEWER: <text>
+INFORMANT: <text>
+INTERVIEWER: <text>
+INFORMANT: <text>
+```
+
+One of the clusters contains the following excerpts from the interviews:
+{docs}
+The keywords are distinctive to texts in this cluster: {keywords}
+
+Please extract information about: the maquettes being discussed, positive and negative feedback or concerns about the maquette(s), and
+any other information that could be important. Please then combine this information into a coherent summary. Note that you MUST provide the summary
+even if you cannot ascertain some of the other information - in this case, please just summarise the excerpts in the cluster.
+
+Please provide the above information as a JSON object:
+- name: A short, informative name for the cluster **in French**
+- maquettes: If any maquettes are mentioned in the texts (either by number, or they are described) please list these here **in French**
+- positives: A summary of positive feedback that the professionals in this cluster have about the maquettes, plus any reasons they give for their beliefs **in French**
+- negatives: A summary of negative feedback or concerns that the professionals have about the maquettes, plus any reasons they give for their beliefs **in French**
+- other: Any other info from the excerpts that is valuable to a discussion of how to reduce sedentary behaviour in the workplace **in French**
+- summary: A coherent summary of information you have extracted (maquettes, positives, negatives, anything else important) **in French**
+
+Provide nothing except for this JSON dict and make sure you include all the fields requested.

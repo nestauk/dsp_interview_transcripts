@@ -1,0 +1,205 @@
+---
+title: "BIT France analysis"
+# Changing the background colour for the title block
+title-block-banner: "#0000FF"
+# Changing the text colour for the title block
+title-block-banner-color: "#FFFFFF"
+# Do we want to add a table of contents: true/false
+toc: true
+# Where do we want the table of contents to be located: left/right/body
+toc-location: left
+# Do we want the sections numbered: true/false
+number-sections: true
+format:
+  html:
+    page-layout: full
+    code-fold: true
+jupyter: python3
+---
+
+# Introduction
+
+We have prepared a preliminary analysis of the interview transcripts. Below you will find a section explaining our methods, and then a section presenting some visual representations of the data.
+
+Any questions, please do not hesitate to contact [rosie.oxbury@nesta.org.uk](@mailto:rosie.oxbury@nesta.org.uk) or [karlis.kanders@nesta.org.uk](@mailto:karlis.kanders@nesta.org.uk).
+
+# Methods
+
+## Text preprocessing
+* We avoided manipulating the text beyond converting `.docx` files to `.txt`.
+* This analysis only takes into account the second part of each interview in which the informant is shown some prototypes designed to help reduce sedentary behaviour in the workplace.
+* The topic modelling is currently based on small excerpts of the interview no more than 4 turns long, i.e. interviewer / informant / interviewer / informant.
+* For the topic modelling, each of these excerpts is treated as a single data point.
+
+## Topic modelling
+We used the popular library [BERTopic](https://maartengr.github.io/BERTopic/api/bertopic.html#bertopic._bertopic.BERTopic.get_representative_docs) to extract topics from the data. This method works by:
+
+* Embedding the text data - this means translating the text into a numerical representation (vectors) that a computer can understand.
+* Applying a clustering algorithm to the vectors. This works to group together similar vectors (and therefore similar text) into clusters.
+* Extracting the key words that distinguish each cluster from the others.
+
+## Scope of topic modelling
+For this first iteration, we created one topic model across all the data (rather than individual models for the 4 types of informants). In the next iteration we can create a separate model for each group of informants if that is likely to be useful. Below, we have provided a plot that shows a breakdown of which topics were mentioned relatively more often in each group of informants.
+
+## Topic names and descriptions
+We then also used a LLM (llama3.2) to identify the following information in each cluster:
+
+* A name for the cluster
+* Which *maquettes*, if any, are discussed
+* Positive feedback that the informants had about the *maquettes*
+* Negative feedback or concerns that the informants had
+* Other information provided in these excerpts about reducing sedentary behaviour in the workplace
+* A short summary that synthesises the information above.
+
+This part is somewhat experimental. We have shown the resulting information with the prefix "AI-generated"/"AI-identified" in the tables below, but in the plots we use the keyword-based topic names that come from the topic model.
+
+# Results
+
+```{python}
+#| echo: false
+
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+
+from dsp_interview_transcripts import PROJECT_DIR
+from dsp_interview_transcripts.utils.quarto_utils import NESTA_COLOURS, load_data_and_centroids, plot, make_barplots
+
+```
+
+## Décideurs
+The table below shows the topics that we derived from the interviews with the Décideurs:
+
+```{python}
+#| echo: false
+#| tbl-cap: "Topic names and keywords, and AI-generated names and descriptions"
+
+sorted_list_decideurs, data_viz_decideurs = load_data_and_centroids(profession="Décideurs")
+
+df = pd.read_csv('Décideurs_repr_docs_brief.csv')
+df.style
+```
+
+### Topic distribution
+
+The barplot below allows you to see:
+
+1. The number of interview excerpts that were assigned to each topic
+
+2. The number of informants that contributed to each topic. We expect each informant to have contributed to multiple topics. Any topics that have very few informants (e.g. just 1 or 2) we would recommend excluding from further analysis.
+
+```{python}
+make_barplots(data_viz_decideurs, sorted_list_decideurs)
+```
+
+### Interactive plot
+
+The plot below shows each excerpt as a single point. **The x and y axes are abstract and do not have any meaning**, though points that are closer together should be similar semantically and points that are further away are more different from each other semantically. Each point on the plot is coloured by topic.
+
+The keywords superimposed on the graph are words that can be considered distinctive of texts in that area of the plot.
+
+The plot is interactive and you can:
+
+* hover over a point to see the file it comes from, the topic, and the text of this utterance
+* click a topic in the legend to remove it from the plot (click it again to add it back)
+
+```{python}
+#| echo: false
+#| label: fig-scatter-decideurs
+#| fig-cap: "Interactive visualisation of interview transcripts. One point = one turn in conversation. The points are coloured by topic. Keywords indicate the theme of nearby points."
+#| fig-fullwidth: true
+plot(sorted_list_decideurs, data_viz_decideurs)
+
+```
+
+## Elus
+The table below shows the topics that we derived:
+
+```{python}
+#| echo: false
+#| tbl-cap: "Topic names and keywords, and AI-generated names and descriptions"
+
+sorted_list_elus, data_viz_elus = load_data_and_centroids(profession="Elus")
+
+df = pd.read_csv('Elus_repr_docs_brief.csv')
+df.style
+```
+
+
+### Topic distribution
+
+The barplot below allows you to see:
+
+1. The number of interview excerpts that were assigned to each topic
+
+2. The number of informants that contributed to each topic. We expect each informant to have contributed to multiple topics. Any topics that have very few informants (e.g. just 1 or 2) we would recommend excluding from further analysis.
+
+```{python}
+make_barplots(data_viz_elus, sorted_list_elus)
+```
+
+### Interactive plot
+
+The plot below shows each excerpt as a single point. **The x and y axes are abstract and do not have any meaning**, though points that are closer together should be similar semantically and points that are further away are more different from each other semantically. Each point on the plot is coloured by topic.
+
+The keywords superimposed on the graph are words that can be considered distinctive of texts in that area of the plot.
+
+The plot is interactive and you can:
+
+* hover over a point to see the file it comes from, the topic, and the text of this utterance
+* click a topic in the legend to remove it from the plot (click it again to add it back)
+
+
+```{python}
+#| echo: false
+#| label: fig-scatter-elus
+#| fig-cap: "Interactive visualisation of interview transcripts. One point = one turn in conversation. The points are coloured by topic. Keywords indicate the theme of nearby points."
+#| fig-fullwidth: true
+plot(sorted_list_elus, data_viz_elus)
+
+```
+
+## Salariés
+The table below shows the topics that we derived:
+
+```{python}
+#| echo: false
+#| tbl-cap: "Topic names and keywords, and AI-generated names and descriptions"
+sorted_list_salaries, data_viz_salaries = load_data_and_centroids(profession="Salariés")
+
+df = pd.read_csv('Salariés_repr_docs_brief.csv')
+df.style
+```
+
+### Topic distribution
+
+The barplot below allows you to see:
+
+1. The number of interview excerpts that were assigned to each topic
+
+2. The number of informants that contributed to each topic. We expect each informant to have contributed to multiple topics. Any topics that have very few informants (e.g. just 1 or 2) we would recommend excluding from further analysis.
+
+```{python}
+make_barplots(data_viz_salaries, sorted_list_salaries)
+```
+
+
+### Interactive plot
+
+The plot below shows each excerpt as a single point. **The x and y axes are abstract and do not have any meaning**, though points that are closer together should be similar semantically and points that are further away are more different from each other semantically. Each point on the plot is coloured by topic.
+
+The keywords superimposed on the graph are words that can be considered distinctive of texts in that area of the plot.
+
+The plot is interactive and you can:
+
+* hover over a point to see the file it comes from, the topic, and the text of this utterance
+* click a topic in the legend to remove it from the plot (click it again to add it back)
+
+```{python}
+#| echo: false
+#| label: fig-scatter
+#| fig-cap: "Interactive visualisation of interview transcripts. One point = one turn in conversation. The points are coloured by topic. Keywords indicate the theme of nearby points."
+#| fig-fullwidth: true
+plot(sorted_list_salaries, data_viz_salaries)
+
+```

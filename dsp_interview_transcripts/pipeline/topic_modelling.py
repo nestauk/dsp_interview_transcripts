@@ -1,16 +1,29 @@
+"""
+Example usage:
+```
+python dsp_interview_transcripts/pipeline/topic_modelling.py -s leaf -c 50 -r embeddings
+```
+or
+```
+python dsp_interview_transcripts/pipeline/topic_modelling.py -s eom -c 50 -r probabilities --production
+```
+"""
+import os
 import random
-
-from collections import defaultdict
 
 import numpy as np
 import pandas as pd
 import plac
 import torch
 
+from bertopic import BERTopic
+from bertopic.dimensionality import BaseDimensionalityReduction
+from bertopic.representation import KeyBERTInspired
+from bertopic.representation import MaximalMarginalRelevance
 from hdbscan import HDBSCAN
 from sentence_transformers import SentenceTransformer
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import normalize
 from umap import UMAP
 
 from dsp_interview_transcripts import PROJECT_DIR
@@ -19,167 +32,182 @@ from dsp_interview_transcripts import config
 from dsp_interview_transcripts import logger
 from dsp_interview_transcripts.getters.data_getters import save_to_s3
 from dsp_interview_transcripts.getters.interim import get_cleaned_data
+from dsp_interview_transcripts.utils.repr_docs import *
+from dsp_interview_transcripts.utils.topic_modelling import embed_docs
+from dsp_interview_transcripts.utils.topic_modelling import get_proportion_noise
+from dsp_interview_transcripts.utils.topic_modelling import init_topic_model
 
 
 # Set random seeds
 RANDOM_SEED = 42
 np.random.seed(RANDOM_SEED)
 random.seed(RANDOM_SEED)
-# PyTorch seed (used by SentenceTransformer)
 torch.manual_seed(RANDOM_SEED)
 
+MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 SENTENCE_MODEL = SentenceTransformer("all-MiniLM-L6-v2")
 
-MIN_CLUSTER_SIZE = 20
+MIN_CLUSTER_SIZE = config["topic_modelling_params"]["min_cluster_size"]
+SELECTION_METHOD = config["topic_modelling_params"]["selection"]
+REDUCTION_METHOD = config["topic_modelling_params"]["reduction"]
+MIN_LEN = config["min_length"]
+PROJECT = config["project"]
+# directory for local outputs
+OUTPATH = f"{PROJECT_DIR}/outputs/{PROJECT}/"
+os.makedirs(OUTPATH, exist_ok=True)
 
-umap_model = UMAP(
-    n_neighbors=15,
-    n_components=50,
-    min_dist=0.1,
-    metric="cosine",
-    random_state=RANDOM_SEED,
+
+@plac.opt("selection", "Cluster selection method ('eom' or 'leaf')", type=str, abbrev="s")
+@plac.opt("min_cluster_size", "Minimum cluster size for HDBSCAN", type=int, abbrev="c")
+@plac.opt(
+    "reduction_strategy",
+    "Strategy for reducing outliers ('embeddings', 'probabilities', 'distributions', 'ctfidf')",
+    type=str,
+    abbrev="r",
 )
-
-hdbscan_model = HDBSCAN(
+@plac.annotations(
+    production=("Run script in production mode if True, otherwise in test mode", "flag", "production", "p")
+)
+def main(
+    selection=SELECTION_METHOD,
     min_cluster_size=MIN_CLUSTER_SIZE,
-    metric="euclidean",
-    cluster_selection_method="eom",
-    prediction_data=True,
-)
+    reduction_strategy=REDUCTION_METHOD,
+    production: bool = False,
+):
 
-vectorizer_model = TfidfVectorizer(
-    stop_words="english",
-    min_df=1,
-    max_df=0.85,
-    ngram_range=(1, 3),
-)
+    if reduction_strategy == "ctfidf":
+        reduction_strategy = "c-tf-idf"
 
-
-def stratified_sample(group: pd.DataFrame, n: int = 10) -> pd.DataFrame:
-    """
-    Generate a stratified sample: get N responses stratified by
-    'question' and 'sentiment' values. The dataframe should already contain
-    just one topic ie one group.
-
-    Args:
-        group (pd.DataFrame): The DataFrame containing data for 1 topic to sample from.
-            Must contain 'question' and 'sentiment' columns.
-        n (int, optional): The number of samples to draw per 'question' and
-            'sentiment' combination. If there are fewer than `n` records in a
-            group, all available records are returned. Defaults to 10.
-
-    Returns:
-        pd.DataFrame: A new DataFrame containing the stratified sample.
-    """
-    # TODO: filter based on hdbscan probability
-    # TODO: find docs from centre of the cluster
-
-    # Calculate the sample size for each combination of 'question'
-    # and 'sentiment'
-    stratified_sample = group.groupby(["question", "sentiment"]).apply(
-        lambda x: x.sample(frac=min(1, n / len(group)), random_state=42)
-    )
-
-    # Reset the index to tidy up the resulting DataFrame
-    return stratified_sample.reset_index(drop=True)
-
-
-def main(production: bool = False):
-
-    MIN_LEN = config["min_length"]
     if production:
-        OUT_PATH_FULL_DATA = config["prod_paths"]["interim_data_w_topics_s3_path"].format(MIN_LEN=MIN_LEN)
-        OUT_PATH_REP_DOCS = config["prod_paths"]["interim_representative_docs_s3_path"].format(MIN_LEN=MIN_LEN)
+        OUT_PATH_FULL_DATA = f"{PROJECT}/" + config["prod_paths"]["interim_data_w_topics_s3_path"].format(
+            MIN_LEN=MIN_LEN
+        )
+        OUT_PATH_REP_DOCS = f"{PROJECT}/" + config["prod_paths"]["interim_representative_docs_s3_path"].format(
+            MIN_LEN=MIN_LEN
+        )
     else:
-        OUT_PATH_FULL_DATA = config["test_paths"]["interim_data_w_topics_s3_path"].format(MIN_LEN=MIN_LEN)
-        OUT_PATH_REP_DOCS = config["test_paths"]["interim_representative_docs_s3_path"].format(MIN_LEN=MIN_LEN)
+        OUT_PATH_FULL_DATA = f"{PROJECT}/" + config["test_paths"]["interim_data_w_topics_s3_path"].format(
+            MIN_LEN=MIN_LEN
+        )
+        OUT_PATH_REP_DOCS = f"{PROJECT}/" + config["test_paths"]["interim_representative_docs_s3_path"].format(
+            MIN_LEN=MIN_LEN
+        )
 
     user_messages = get_cleaned_data(production=production)
 
     docs = user_messages["text_clean"].tolist()
-    logger.info("Embedding user messages...")
-    embeddings = SENTENCE_MODEL.encode(docs, show_progress_bar=True)
+    docs, embeddings = embed_docs(docs, SENTENCE_MODEL, save=False)
 
-    logger.info("Reducing dimensionality...")
-    umap_vectors = umap_model.fit_transform(embeddings)
+    topic_model, vectorizer_model, representation_model = init_topic_model(
+        stop_words="english",
+        min_cluster_size=min_cluster_size,
+        hdbscan_selection_method=selection,
+        embedding_model=MODEL_NAME,
+        seed=RANDOM_SEED,
+        empty_reduction=False,
+    )
 
-    umap_df = pd.DataFrame(umap_vectors)
-    umap_df.columns = umap_df.columns.map(str)
-    user_messages_w_umap = pd.concat([user_messages.reset_index(), umap_df], axis=1)
+    topics, probs = topic_model.fit_transform(docs, embeddings)
 
-    umap_vars = [f"{i}" for i in range(50)]
-    model_vars = umap_vars
+    print(f"Unique topics before reduction: {set(topics)}")
+    print(f"Reduction strategy: {reduction_strategy}")
 
-    # Normalise the umap vectors
-    logger.info("Normalising UMAP vectors...")
-    scaler = StandardScaler()
-    df_normalized = scaler.fit_transform(user_messages_w_umap[model_vars])
+    if reduction_strategy == "probabilities":
+        new_topics = topic_model.reduce_outliers(docs, topics, probabilities=probs, strategy=reduction_strategy)
+    else:
+        new_topics = topic_model.reduce_outliers(docs, topics, strategy=reduction_strategy)
 
-    logger.info("Fitting HDBSCAN...")
-    clusters = hdbscan_model.fit_predict(df_normalized)
-    cluster_probabilities = hdbscan_model.probabilities_
-    user_messages_w_umap["label"] = clusters
-    user_messages_w_umap["probs"] = cluster_probabilities
-    logger.info(user_messages_w_umap["label"].value_counts())
+    topic_model.update_topics(
+        docs,
+        topics=new_topics,
+        top_n_words=10,
+        n_gram_range=(1, 3),
+        vectorizer_model=vectorizer_model,
+        ctfidf_model=None,
+        representation_model=representation_model,
+    )
 
-    # 2d embeddings for visualisation
-    logger.info("Creating 2D embeddings for visualisation...")
+    # Default BERTopic scatterplot
+    fig = topic_model.visualize_documents(docs, embeddings=embeddings)
+    output_path = f"{OUTPATH}bertopic_visualization_selection_{selection}_min_length_{MIN_LEN}_min_cluster_{min_cluster_size}_red_{reduction_strategy}.html"
+    fig.write_html(output_path)
+
+    # Default BERTopic summary info
+    summary_info = topic_model.get_topic_info()
+    # save locally
+    topic_info_path = f"{OUTPATH}bertopic_topic_info_selection_{selection}_min_length_{MIN_LEN}_min_cluster_{min_cluster_size}_red_{reduction_strategy}.csv"
+    summary_info.to_csv(topic_info_path, index=False)
+    # save to s3
+    if production:
+        bertopic_summary_outpath = f"{PROJECT}/" + "interim/bertopic_topic_info.csv"
+    else:
+        bertopic_summary_outpath = f"{PROJECT}/" + "test/interim/bertopic_topic_info.csv"
+    save_to_s3(
+        S3_BUCKET,
+        summary_info,
+        bertopic_summary_outpath,
+    )
+
+    # What proportion is noise?
+    proportion_noise = get_proportion_noise(
+        new_topics,
+        save=True,
+        outpath=f"{OUTPATH}noise_prop_selection_{selection}_min_length_{MIN_LEN}_min_cluster_{min_cluster_size}_red_{reduction_strategy}.txt",
+    )
+
     umap_2d = UMAP(random_state=RANDOM_SEED, n_components=2)
     embeddings_2d = umap_2d.fit_transform(embeddings)
 
-    # topic representations
-    logger.info("Creating tfidf representation...")
-    cluster_groups = user_messages_w_umap.groupby("label").agg({"text_clean": " ".join}).reset_index()
+    topic_lookup = summary_info[["Topic", "Name", "Representation"]]
 
-    tfidf_matrix = vectorizer_model.fit_transform(cluster_groups["text_clean"].to_list())
+    df_vis = pd.DataFrame(embeddings_2d, columns=["x", "y"])
+    df_vis["topic"] = new_topics
+    df_vis = df_vis.merge(topic_lookup, left_on="topic", right_on="Topic", how="left")
+    df_vis["doc"] = docs
 
-    feature_names = vectorizer_model.get_feature_names_out()
-
-    # Create a dictionary to hold top words for each cluster
-    top_words_per_cluster = defaultdict(list)
-
-    # Number of top words you want to display per cluster
-    n_top_words = 10
-
-    # Iterate over each cluster and get top words
-    for cluster_idx, tfidf_scores in enumerate(tfidf_matrix):
-        # Get indices of top n words within the cluster
-        top_word_indices = tfidf_scores.toarray()[0].argsort()[: -n_top_words - 1 : -1]
-
-        # Get the top words corresponding to the top indices
-        top_words = [feature_names[i] for i in top_word_indices]
-
-        # Append the words to the dictionary
-        top_words_per_cluster[cluster_groups.iloc[cluster_idx]["label"]] = ", ".join(top_words)
-
-    top_words_df = pd.DataFrame(list(top_words_per_cluster.items()), columns=["Cluster", "Top Words"])
-
-    user_messages_w_umap_topics = pd.merge(
-        user_messages_w_umap, top_words_df, left_on="label", right_on="Cluster", how="left"
+    df_vis = pd.merge(
+        user_messages[["uuid", "conversation", "timestamp", "text_clean", "sentiment", "question", "context"]],
+        df_vis,
+        left_on="text_clean",
+        right_on="doc",
+        how="outer",
     )
-    user_messages_w_umap_topics["x"] = embeddings_2d[:, 0]
-    user_messages_w_umap_topics["y"] = embeddings_2d[:, 1]
+
+    logger.info(f'Topic distribution: {df_vis["Name"].value_counts(normalize=True)}')
+
+    unique_conversations_per_topic = df_vis.groupby("Topic")["conversation"].nunique().reset_index()
+    unique_conversations_per_topic.columns = ["Topic", "N_users"]
+    logger.info(f"N users in each topic: {unique_conversations_per_topic}")
+
+    df_vis["embedding"] = list(embeddings)
 
     logger.info("Saving data...")
-    save_to_s3(S3_BUCKET, user_messages_w_umap_topics, OUT_PATH_FULL_DATA)
+    save_to_s3(S3_BUCKET, df_vis, OUT_PATH_FULL_DATA)
 
     # save most representative documents
+    df_vis_no_noise = df_vis[df_vis["topic"] != -1]
+    _, clustered_data = get_min_radius(df_vis_no_noise, k_neighbours=10, embedding_col="embedding")
 
-    filtered_df = user_messages_w_umap_topics[
-        (user_messages_w_umap_topics["probs"] >= 0.5) & (user_messages_w_umap_topics["Cluster"] != -1)
-    ]
-
-    # Group by 'Cluster' and apply the stratified sampling
-    sampled_texts = filtered_df.groupby("Cluster").apply(stratified_sample).reset_index(drop=True)
-
-    # Keep only the first 10 samples per cluster
-    sampled_texts = sampled_texts.groupby("Cluster").head(10)
+    clustered_data["quartile"] = clustered_data.groupby("topic")["radius_10"].transform(
+        lambda x: pd.qcut(x, q=4, labels=["1st", "2nd", "3rd", "greater than 3rd"])
+    )
+    repr_docs = extract_repr_docs(clustered_data)
 
     logger.info("Saving data...")
     save_to_s3(
         S3_BUCKET,
-        sampled_texts[
-            ["Cluster", "Top Words", "text_clean", "sentiment", "question", "context", "conversation", "uuid", "probs"]
+        repr_docs[
+            [
+                "Topic",
+                "Name",
+                "Representation",
+                "text_clean",
+                "sentiment",
+                "question",
+                "context",
+                "conversation",
+                "uuid",
+            ]
         ],
         OUT_PATH_REP_DOCS,
     )

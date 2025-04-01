@@ -11,7 +11,6 @@ from data import data_viz
 from data import transcripts
 from style import CONTENT_STYLE
 from style import NESTA_COLOURS
-from style import SIDEBAR_STYLE
 
 
 dash.register_page(__name__, path="/scatterplot")
@@ -77,9 +76,9 @@ layout = html.Div(
                     page_action="none",
                     style_table={"height": "500px", "overflowY": "auto"},
                     style_cell={
-                        "fontFamily": "Century Gothic",  # Set font to Century Gothic
-                        "fontSize": "14px",  # Optional: set font size
-                        "textAlign": "left",  # Optional: align text
+                        "fontFamily": CONTENT_STYLE["fontFamily"],
+                        "fontSize": CONTENT_STYLE["fontSize"],
+                        "textAlign": "left",
                     },
                 )
             ],
@@ -89,7 +88,7 @@ layout = html.Div(
     style=CONTENT_STYLE,
 )
 
-
+# Callback for showing the plot and the selected point
 @dash.callback(Output("scatter-plot", "figure"), [Input("scatter-plot", "clickData")], prevent_initial_call=False)
 def update_scatter_plot(clickData):
 
@@ -110,9 +109,6 @@ def update_scatter_plot(clickData):
         trace_opacity = data_viz[data_viz["Name"] == trace_name]["opacity"].values
         trace.update(marker=dict(opacity=trace_opacity))
 
-    # Update hovertemplate to show only 'text_clean'
-    fig.update_traces(hovertemplate="<b>%{customdata[1]}</b><extra></extra>")
-
     # Code to highlight the point that's been clicked
     if clickData:
 
@@ -126,6 +122,9 @@ def update_scatter_plot(clickData):
             ),
         )
 
+    # Update hovertemplate to show only 'text_clean'
+    fig.update_traces(hovertemplate="<b>%{customdata[1]}</b><extra></extra>")
+
     fig.update_layout(
         uirevision="scatter-plot",  # Ensure that the zoom level is preserved after you've clicked a point
         xaxis=dict(showticklabels=False, title_text=""),  # Hide x-axis ticks and title
@@ -136,6 +135,7 @@ def update_scatter_plot(clickData):
     return fig
 
 
+# Callback to populate table
 @dash.callback(
     [
         Output("filtered-table", "data"),
@@ -163,6 +163,7 @@ def update_table(clickData):
     return [], []
 
 
+# Callback to update "Selected Point Info" panel
 @dash.callback(
     [
         Output("name-display", "children"),
