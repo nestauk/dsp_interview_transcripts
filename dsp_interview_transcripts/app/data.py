@@ -1,12 +1,13 @@
 import pandas as pd
 
 
-DATA_DIR = "data/"
+PROJECT = "heatflex"
+DATA_DIR = f"data/{PROJECT}/"
 
 FILENAME_DATA = "user_messages_min_len_9_w_sentiment_topics.csv"
 FILENAME_DATA_CLUSTER_NAMES = "user_messages_min_len_9_w_sentiment_topics_with_names_descriptions.csv"
 FILENAME_SUMMARY_INFO = "summary_info.csv"
-FILENAME_TRANSCRIPTS = "qual_af_transcripts_cleaned.csv"
+FILENAME_TRANSCRIPTS = f"{PROJECT}_transcripts_cleaned.csv"
 
 data = pd.read_csv(f"{DATA_DIR}{FILENAME_DATA}").rename(columns={"Name": "Topic_name"})
 data_w_names = pd.read_csv(f"{DATA_DIR}{FILENAME_DATA_CLUSTER_NAMES}").rename(
