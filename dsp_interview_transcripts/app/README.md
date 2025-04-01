@@ -18,6 +18,22 @@ The files you need are:
 
 If we continue the app long-term, we will set up a service account to read data from s3 directly but for now you need to download and store the data locally.
 
+## Secrets
+
+You also need a `.env` file at the root of the project that contains the following keys:
+```
+VALID_USERNAME = <username>
+VALID_PASSWORD = <password>
+```
+Contact one of the project team to find out the correct username and password. Dash uses these values in `dsp_interview_transcripts/app/app_pages.py`:
+```
+import dash_auth
+
+...
+
+auth = dash_auth.BasicAuth(app, {os.environ.get("VALID_USERNAME"): os.environ.get("VALID_PASSWORD")})
+```
+
 ## Virtual environment
 Create a virtual env for the app separate from the general project environment:
 ```
