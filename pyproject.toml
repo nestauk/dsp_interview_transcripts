@@ -36,7 +36,7 @@ python-docx = "^1.1.2"
 sentencepiece = "^0.2.0"
 quarto = "^0.1.0"
 langchain-community = "^0.3.13"
-discovery-utils = {git = "https://github.com/nestauk/discovery_utils.git", rev = "78-mission-radar-prototype"}
+discovery-utils = {git = "https://github.com/nestauk/discovery_utils.git", rev = "86-asyncio-error"}
 
 [tool.poetry.group.test]
 optional = true
