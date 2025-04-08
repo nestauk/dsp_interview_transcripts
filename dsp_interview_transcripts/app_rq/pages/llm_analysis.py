@@ -12,8 +12,8 @@ import pandas as pd
 from dash import Input
 from dash import Output
 from dash import State
+from dash import callback
 from dash import ctx
-from dash import dash_table
 from dash import dcc
 from dash import html
 from dash.dependencies import ALL
@@ -32,159 +32,38 @@ from utils.summarize import summarize_and_quote
 
 PROMPT_PATH = Path("prompts/llm_check_system_a.txt")
 
-user_id = str(uuid.uuid4())
-session_output_dir = os.path.join("outputs", user_id)
-os.makedirs(session_output_dir, exist_ok=True)
+dash.register_page(__name__, path="/llm_analysis", name="RQ Analysis")
 
-OUTPUT_DIR = session_output_dir
-
-app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
-app.title = "Framework / top-down analysis"
-
-app.layout = dbc.Container(
+layout = html.Div(
     [
-        html.H2("Research Question Explorer"),
-        dcc.Upload(
-            id="upload-data",
-            children=html.Div(["Drag and Drop or ", html.A("Select a CSV File")]),
-            style={
-                "width": "100%",
-                "height": "60px",
-                "lineHeight": "60px",
-                "borderWidth": "1px",
-                "borderStyle": "dashed",
-                "borderRadius": "5px",
-                "textAlign": "center",
-            },
-            multiple=False,
-        ),
-        dbc.Checkbox(id="test-mode-toggle", label="Run in test mode (no LLM calls)", value=True),
-        html.Div(id="upload-feedback", style={"marginTop": 10}),
-        html.Div(id="column-selectors"),
-        html.Br(),
+        html.H3("Submit Research Questions"),
         dcc.Textarea(
             id="rq-textarea",
-            placeholder="Enter research questions, one per line...",
+            placeholder="Enter RQs, one per line...",
             style={"width": "100%", "height": "150px"},
         ),
         html.Br(),
+        dbc.Checkbox(id="test-mode-toggle", label="Run in test mode (no LLM calls)", value=True),
+        html.Br(),
         dbc.Button("Run Analysis", id="run-analysis", color="primary"),
         html.Br(),
-        html.Br(),
         html.Div(id="analysis-results"),
-    ],
-    fluid=True,
+    ]
 )
 
-# Store uploaded data and metadata in dcc.Store components
-app.layout.children += [
-    dcc.Store(id="stored-data"),
-    dcc.Store(id="stored-column-info"),
-    dcc.Store(id="stored-output-paths"),
-    dcc.Store(id="stored-rqs"),
-    dcc.Store(id="stored-original-df"),
-    # store the clicked quote
-    dbc.Modal(
-        [
-            dbc.ModalHeader(dbc.ModalTitle("Conversation View")),
-            dbc.ModalBody(id="modal-body"),
-        ],
-        id="quote-modal",
-        size="xl",
-        is_open=False,
-    ),
-]
 
-
-@app.callback(
-    Output("upload-feedback", "children"), Input("upload-data", "contents"), State("upload-data", "filename")
-)
-def handle_upload(contents, filename):
-    """Display the name of the uploaded file if the upload is successful"""
-    if contents is None:
-        return "", None
-
-    return f"Uploaded file: {filename}"
-
-
-@app.callback(
-    Output("column-selectors", "children"),
-    Input("upload-data", "contents"),
-)
-def show_column_selectors(contents):
-    """Once a file has been uploaded, display dropdown menus
-    where the user can identify which column contains the conversation ID, which column contains
-    text etc.
-    """
-    if not contents:
-        return "", None
-
-    df = read_data(contents)
-
-    options = [{"label": col, "value": col} for col in df.columns]
-    return (
-        html.Div(
-            [
-                html.H5("Step 1: Select relevant columns"),
-                dbc.Row(
-                    [
-                        dbc.Col(dcc.Dropdown(id="conv-id-col", options=options, placeholder="Conversation ID column")),
-                        dbc.Col(dcc.Dropdown(id="role-col", options=options, placeholder="Role column")),
-                        dbc.Col(dcc.Dropdown(id="text-col", options=options, placeholder="Text column")),
-                        dbc.Col(
-                            dcc.Dropdown(
-                                id="uuid-col",
-                                options=[{"label": "None", "value": "None"}] + options,
-                                placeholder="Unique ID (optional)",
-                            )
-                        ),
-                    ]
-                ),
-            ]
-        ),
-    )
-
-
-@app.callback(
-    Output("stored-column-info", "data"),
-    Input("conv-id-col", "value"),
-    Input("role-col", "value"),
-    Input("text-col", "value"),
-    Input("uuid-col", "value"),
-    State("stored-data", "data"),
-)
-def store_column_selection(conv_id, role_col, text_col, uuid_col, data_json):
-    """
-    Once columns have been selected, store the names of these columns so that we can
-    use these later on with the data from the csv file.
-    """
-
-    if not all([conv_id, role_col, text_col]):
-        stored_cols = None
-    else:
-        stored_cols = {
-            "conv_id": conv_id,
-            "role_col": role_col,
-            "text_col": text_col,
-            "uuid_col": uuid_col,
-        }
-
-    print(stored_cols)
-
-    return stored_cols
-
-
-@app.callback(
+@callback(
     Output("analysis-results", "children"),
     Output("stored-output-paths", "data"),
     Output("stored-rqs", "data"),
     Input("run-analysis", "n_clicks"),
-    Input("upload-data", "contents"),
+    State("stored-data", "data"),  # contents
     State("stored-column-info", "data"),
     State("rq-textarea", "value"),
     State("test-mode-toggle", "value"),  # if running in test mode, don't run the LLM
+    State("session-id", "data"),
 )
-def run_analysis(n_clicks, contents, column_info, rq_text, test_mode):
+def run_analysis(n_clicks, contents, column_info, rq_text, test_mode, session_id):
     """
     Runs the LLM analysis (batch check + summarization and extraction of key quotes)
     whenever the "Run Analysis" button is clicked.
@@ -246,11 +125,13 @@ def run_analysis(n_clicks, contents, column_info, rq_text, test_mode):
         return dbc.Alert("Test mode: using mock outputs", color="info"), output_paths, rq_dict
     else:
         # === NORMAL MODE: run LLM ===
-        output_paths = run_batch_check(conversation_dict, prompt_dict, OUTPUT_DIR)
+        output_dir = os.path.join("outputs", session_id)
+        os.makedirs(output_dir, exist_ok=True)
+        output_paths = run_batch_check(conversation_dict, prompt_dict, output_dir)
         return dbc.Alert("LLM processing complete! See below for results.", color="success"), output_paths, rq_dict
 
 
-@app.callback(
+@callback(
     Output("analysis-results", "children", allow_duplicate=True),
     Input("stored-output-paths", "data"),
     State("stored-rqs", "data"),
@@ -299,13 +180,13 @@ def display_results(output_paths, rq_dict, test_mode):
     return (html.Div(children),)
 
 
-@app.callback(
+@callback(
     Output("quote-modal", "is_open"),
     Output("modal-body", "children"),
     Input({"type": "quote", "index": ALL}, "n_clicks"),
     State("stored-output-paths", "data"),
     State("stored-rqs", "data"),
-    State("upload-data", "contents"),
+    State("stored-data", "data"),  # contents
     State("stored-column-info", "data"),
 )
 def display_conversation(n_clicks_list, output_paths, rq_dict, contents, column_info):
@@ -362,7 +243,3 @@ def display_conversation(n_clicks_list, output_paths, rq_dict, contents, column_
     ]
 
     return True, html.Div(conversation_display)
-
-
-if __name__ == "__main__":
-    app.run(debug=True)
