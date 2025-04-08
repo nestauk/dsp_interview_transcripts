@@ -1,9 +1,7 @@
-import base64
 import json
 import os
 import uuid
 
-from io import StringIO
 from pathlib import Path
 
 import dash
@@ -23,6 +21,7 @@ from style import CONTENT_STYLE
 from style import NESTA_COLOURS
 from style import SIDEBAR_STYLE
 
+from utils.dash_utils import *
 from utils.pipeline import build_question_prompt_dict
 from utils.pipeline import convert_transcripts_df_to_dict
 from utils.pipeline import normalize_uuid
@@ -36,19 +35,10 @@ user_id = str(uuid.uuid4())
 session_output_dir = os.path.join("outputs", user_id)
 os.makedirs(session_output_dir, exist_ok=True)
 
-OUTPUT_DIR = session_output_dir  # Path("outputs")
-# OUTPUT_DIR.mkdir(exist_ok=True, parents=True)
-
-
-def read_data(contents):
-    _, content_string = contents.split(",")
-    decoded = base64.b64decode(content_string)
-    df = pd.read_csv(StringIO(decoded.decode("utf-8")))
-    return df
-
+OUTPUT_DIR = session_output_dir
 
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
-app.title = "Research Question Explorer"
+app.title = "Framework / top-down analysis"
 
 app.layout = dbc.Container(
     [
@@ -90,6 +80,9 @@ app.layout.children += [
     dcc.Store(id="stored-column-info"),
     dcc.Store(id="stored-output-paths"),
     dcc.Store(id="stored-rqs"),
+    dcc.Store(id="stored-quote-identifiers"),
+    dcc.Store(id="stored-displayed-quotes"),
+    dcc.Store(id="stored-original-df"),
     # store the clicked quote
     dbc.Modal(
         [
@@ -107,25 +100,22 @@ app.layout.children += [
     Output("upload-feedback", "children"), Input("upload-data", "contents"), State("upload-data", "filename")
 )
 def handle_upload(contents, filename):
+    """Display the name of the uploaded file if the upload is successful"""
     if contents is None:
         return "", None
 
-    df = read_data(contents)
-
-    print(df.head())  # Just to confirm structure
-
-    # decoded = pd.read_csv(StringIO(content_string)) #pd.read_csv(content_string) #pd.read_csv(pd.compat.StringIO(content_string))
-    # print(decoded)
-    # data_json = decoded.to_json(date_format="iso", orient="split")
     return f"Uploaded file: {filename}"
 
 
 @app.callback(
     Output("column-selectors", "children"),
-    # Output("stored-column-info", "data"),
     Input("upload-data", "contents"),
 )
 def show_column_selectors(contents):
+    """Once a file has been uploaded, display dropdown menus
+    where the user can identify which column contains the conversation ID, which column contains
+    text etc.
+    """
     if not contents:
         return "", None
 
@@ -150,10 +140,8 @@ def show_column_selectors(contents):
                         ),
                     ]
                 ),
-                html.Div(id="store-columns-btn-placeholder"),
             ]
         ),
-        None,
     )
 
 
@@ -166,6 +154,10 @@ def show_column_selectors(contents):
     State("stored-data", "data"),
 )
 def store_column_selection(conv_id, role_col, text_col, uuid_col, data_json):
+    """
+    Once columns have been selected, store the names of these columns so that we can
+    use these later on with the data from the csv file.
+    """
 
     if not all([conv_id, role_col, text_col]):
         stored_cols = None
@@ -187,12 +179,16 @@ def store_column_selection(conv_id, role_col, text_col, uuid_col, data_json):
     Output("stored-output-paths", "data"),
     Output("stored-rqs", "data"),
     Input("run-analysis", "n_clicks"),
-    # State("stored-data", "data"),
     Input("upload-data", "contents"),
     State("stored-column-info", "data"),
     State("rq-textarea", "value"),
 )
 def run_analysis(n_clicks, contents, column_info, rq_text):
+    """
+    Runs the LLM analysis (batch check + summarization and extraction of key quotes)
+    whenever the "Run Analysis" button is clicked.
+    """
+
     if not n_clicks or not contents or not column_info or not rq_text:
         return "", None, None
 
@@ -220,15 +216,21 @@ def run_analysis(n_clicks, contents, column_info, rq_text):
 
 @app.callback(
     Output("analysis-results", "children", allow_duplicate=True),
+    Output("stored-quote-identifiers", "data"),
+    Output("stored-displayed-quotes", "data"),
     Input("stored-output-paths", "data"),
     State("stored-rqs", "data"),
     prevent_initial_call="initial_duplicate",
 )
 def display_results(output_paths, rq_dict):
+    """Displays the summary answer and extracted quotes for each RQ."""
     if not output_paths or not rq_dict:
-        return ""
+        return "", None, None
 
     children = []
+    quote_identifiers = []
+    displayed_quotes = []
+
     for rq_id, question in rq_dict.items():
         path = Path(output_paths[rq_id])
         if not path.exists():
@@ -236,27 +238,29 @@ def display_results(output_paths, rq_dict):
             continue
 
         df = pd.read_json(path, lines=True)
+
         extracted_texts = [txt for sublist in df["text"] for txt in sublist]
         answer, quotes = summarize_and_quote(extracted_texts, question)
 
-        children.append(html.H5(f"RQ: {question}"))
-        children.append(html.P(f"**Summary Answer:** {answer}"))
-        children.append(
-            html.Ul(
-                [
-                    html.Li(
-                        html.Span(
-                            q,
-                            id={"type": "quote", "index": f"{rq_id}::{i}"},
+        quote_elements = []
+        for i, row in df.iterrows():
+            for j, (quote, identifier) in enumerate(zip(row["text"], row["identifier"])):
+                if quote in quotes:
+                    quote_elements.append(
+                        html.Li(
+                            quote,
                             style={"cursor": "pointer", "color": "blue", "textDecoration": "underline"},
+                            id={"type": "quote", "index": f"{rq_id}::{i}::{j}"},
                         )
                     )
-                    for i, q in enumerate(quotes)
-                ]
-            )
-        )
+                    displayed_quotes.append(quote)
+                    quote_identifiers.append(identifier)
 
-    return html.Div(children)
+        children.append(html.H5(f"RQ: {question}"))
+        children.append(html.P(f"**Summary Answer:** {answer}"))
+        children.append(html.Ul(quote_elements))
+
+    return html.Div(children), quote_identifiers, displayed_quotes
 
 
 @app.callback(
@@ -269,6 +273,10 @@ def display_results(output_paths, rq_dict):
     State("stored-column-info", "data"),
 )
 def display_conversation(n_clicks_list, output_paths, rq_dict, contents, column_info):
+    """
+    If the user clicks one of the quotes, this brings up a pop-up showing the full conversation
+    with the clicked quote highlighted in yellow.
+    """
     if not any(n_clicks_list):
         raise PreventUpdate
 
@@ -277,8 +285,12 @@ def display_conversation(n_clicks_list, output_paths, rq_dict, contents, column_
     if not triggered_id:
         raise PreventUpdate
 
-    rq_id, quote_index = triggered_id["index"].split("::")
-    quote_index = int(quote_index)
+    try:
+        rq_id, i, j = triggered_id["index"].split("::")
+        i = int(i)
+        j = int(j)
+    except Exception as e:
+        return False, f"Error parsing index: {e}"
 
     path = Path(output_paths[rq_id])
     if not path.exists():
@@ -289,16 +301,15 @@ def display_conversation(n_clicks_list, output_paths, rq_dict, contents, column_
     df_original = read_data(contents)
 
     # Get quote and conversation ID
-    quote_text = df_output.iloc[quote_index]["text"][0]  # assuming one quote per list
+
+    quote_text = df_output.iloc[i]["text"][j]
+    # quote_id = df_output.iloc[i]["identifier"][j]
+
     conv_id_col = column_info["conv_id"]
     text_col = column_info["text_col"]
 
-    # Get the quote text
-    quote_text = df_output.iloc[quote_index]["text"][0]
-
     # Find the row in the original df that contains this quote
     matching_row = df_original[df_original[text_col].str.contains(quote_text, na=False)]
-
     if matching_row.empty:
         return True, f"Could not find the quote in the original data."
 
