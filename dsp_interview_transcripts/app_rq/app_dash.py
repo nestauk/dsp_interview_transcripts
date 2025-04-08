@@ -80,8 +80,6 @@ app.layout.children += [
     dcc.Store(id="stored-column-info"),
     dcc.Store(id="stored-output-paths"),
     dcc.Store(id="stored-rqs"),
-    dcc.Store(id="stored-quote-identifiers"),
-    dcc.Store(id="stored-displayed-quotes"),
     dcc.Store(id="stored-original-df"),
     # store the clicked quote
     dbc.Modal(
@@ -216,8 +214,6 @@ def run_analysis(n_clicks, contents, column_info, rq_text):
 
 @app.callback(
     Output("analysis-results", "children", allow_duplicate=True),
-    Output("stored-quote-identifiers", "data"),
-    Output("stored-displayed-quotes", "data"),
     Input("stored-output-paths", "data"),
     State("stored-rqs", "data"),
     prevent_initial_call="initial_duplicate",
@@ -225,11 +221,9 @@ def run_analysis(n_clicks, contents, column_info, rq_text):
 def display_results(output_paths, rq_dict):
     """Displays the summary answer and extracted quotes for each RQ."""
     if not output_paths or not rq_dict:
-        return "", None, None
+        return ""
 
     children = []
-    quote_identifiers = []
-    displayed_quotes = []
 
     for rq_id, question in rq_dict.items():
         path = Path(output_paths[rq_id])
@@ -245,7 +239,7 @@ def display_results(output_paths, rq_dict):
         quote_elements = []
         for i, row in df.iterrows():
             for j, (quote, identifier) in enumerate(zip(row["text"], row["identifier"])):
-                if quote in quotes:
+                if any(summary_quote in quote or quote in summary_quote for summary_quote in quotes):
                     quote_elements.append(
                         html.Li(
                             quote,
@@ -253,14 +247,12 @@ def display_results(output_paths, rq_dict):
                             id={"type": "quote", "index": f"{rq_id}::{i}::{j}"},
                         )
                     )
-                    displayed_quotes.append(quote)
-                    quote_identifiers.append(identifier)
 
         children.append(html.H5(f"RQ: {question}"))
         children.append(html.P(f"**Summary Answer:** {answer}"))
         children.append(html.Ul(quote_elements))
 
-    return html.Div(children), quote_identifiers, displayed_quotes
+    return (html.Div(children),)
 
 
 @app.callback(
@@ -303,7 +295,6 @@ def display_conversation(n_clicks_list, output_paths, rq_dict, contents, column_
     # Get quote and conversation ID
 
     quote_text = df_output.iloc[i]["text"][j]
-    # quote_id = df_output.iloc[i]["identifier"][j]
 
     conv_id_col = column_info["conv_id"]
     text_col = column_info["text_col"]
