@@ -54,6 +54,7 @@ def init_topic_model(
     embedding_model: SentenceTransformer,
     seed: int = 42,
     empty_reduction: bool = False,
+    nr_topics=None,
 ) -> Tuple[BERTopic, TfidfVectorizer, Dict[str, Union[KeyBERTInspired, MaximalMarginalRelevance]]]:
     """Initializes and returns a BERTopic model along with vectorizer and representation models.
     The representation model and vectorizer can be reused later for noise reduction.
@@ -109,18 +110,33 @@ def init_topic_model(
         "MMR": mmr_model,
     }
 
-    topic_model = BERTopic(
-        # Pipeline models
-        embedding_model=embedding_model,
-        umap_model=reduction_model,
-        hdbscan_model=hdbscan_model,
-        vectorizer_model=vectorizer_model,
-        representation_model=representation_model,
-        # Hyperparameters
-        top_n_words=10,
-        verbose=True,
-        calculate_probabilities=True,
-    )
+    if nr_topics is not None:
+        topic_model = BERTopic(
+            # Pipeline models
+            embedding_model=embedding_model,
+            umap_model=reduction_model,
+            hdbscan_model=hdbscan_model,
+            vectorizer_model=vectorizer_model,
+            representation_model=representation_model,
+            nr_topics=nr_topics,
+            # Hyperparameters
+            top_n_words=10,
+            verbose=True,
+            calculate_probabilities=True,
+        )
+    else:
+        topic_model = BERTopic(
+            # Pipeline models
+            embedding_model=embedding_model,
+            umap_model=reduction_model,
+            hdbscan_model=hdbscan_model,
+            vectorizer_model=vectorizer_model,
+            representation_model=representation_model,
+            # Hyperparameters
+            top_n_words=10,
+            verbose=True,
+            calculate_probabilities=True,
+        )
 
     return topic_model, vectorizer_model, representation_model
 
