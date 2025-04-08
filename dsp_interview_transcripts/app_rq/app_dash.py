@@ -1,5 +1,6 @@
 import json
 import os
+import random
 import uuid
 
 from pathlib import Path
@@ -57,6 +58,7 @@ app.layout = dbc.Container(
             },
             multiple=False,
         ),
+        dbc.Checkbox(id="test-mode-toggle", label="Run in test mode (no LLM calls)", value=True),
         html.Div(id="upload-feedback", style={"marginTop": 10}),
         html.Div(id="column-selectors"),
         html.Br(),
@@ -180,8 +182,9 @@ def store_column_selection(conv_id, role_col, text_col, uuid_col, data_json):
     Input("upload-data", "contents"),
     State("stored-column-info", "data"),
     State("rq-textarea", "value"),
+    State("test-mode-toggle", "value"),  # if running in test mode, don't run the LLM
 )
-def run_analysis(n_clicks, contents, column_info, rq_text):
+def run_analysis(n_clicks, contents, column_info, rq_text, test_mode):
     """
     Runs the LLM analysis (batch check + summarization and extraction of key quotes)
     whenever the "Run Analysis" button is clicked.
@@ -200,6 +203,10 @@ def run_analysis(n_clicks, contents, column_info, rq_text):
         uuid_col = "uuid"
     df[uuid_col] = df[uuid_col].apply(normalize_uuid)
 
+    if test_mode:
+        all_quotes = df[text_col].to_list()
+        mock_quotes = random.sample(all_quotes, 3)
+
     # Parse research questions
     research_questions = rq_text.strip().splitlines()
     rq_dict = {f"rq_{i+1}": q for i, q in enumerate(research_questions)}
@@ -207,18 +214,49 @@ def run_analysis(n_clicks, contents, column_info, rq_text):
     prompt_template = PROMPT_PATH.read_text()
     conversation_dict = convert_transcripts_df_to_dict(df, conv_id, role_col, text_col, uuid_col)
     prompt_dict = build_question_prompt_dict(rq_dict, prompt_template)
-    output_paths = run_batch_check(conversation_dict, prompt_dict, OUTPUT_DIR)
 
-    return dbc.Alert("LLM processing complete! See below for results.", color="success"), output_paths, rq_dict
+    # === TEST MODE: skip LLM ===
+    if test_mode:
+        # Try loading cached files if they exist
+        output_paths = {}
+        for rq_id in rq_dict:
+            mock_path = Path("mock_outputs") / "rq_1_output.jsonl"
+            if mock_path.exists():
+                output_paths[rq_id] = str(mock_path)
+            else:
+                # Fallback mock data
+                mock_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(mock_path, "w") as f:
+                    json.dump(
+                        {
+                            "rq_1": "yes",
+                            "explanation": "This is a test explanation",
+                            "text": mock_quotes,
+                            "identifier": str(uuid.uuid4()) * len(mock_quotes),
+                            "id": str(uuid.uuid4()),
+                            "timestamp": "2025-04-07T00:00:00Z",
+                            "model": "mock",
+                            "temperature": 0,
+                        },
+                        f,
+                    )
+                output_paths[rq_id] = str(mock_path)
+
+        return dbc.Alert("Test mode: using mock outputs", color="info"), output_paths, rq_dict
+    else:
+        # === NORMAL MODE: run LLM ===
+        output_paths = run_batch_check(conversation_dict, prompt_dict, OUTPUT_DIR)
+        return dbc.Alert("LLM processing complete! See below for results.", color="success"), output_paths, rq_dict
 
 
 @app.callback(
     Output("analysis-results", "children", allow_duplicate=True),
     Input("stored-output-paths", "data"),
     State("stored-rqs", "data"),
+    State("test-mode-toggle", "value"),  # if running in test mode, don't run the LLM
     prevent_initial_call="initial_duplicate",
 )
-def display_results(output_paths, rq_dict):
+def display_results(output_paths, rq_dict, test_mode):
     """Displays the summary answer and extracted quotes for each RQ."""
     if not output_paths or not rq_dict:
         return ""
@@ -234,7 +272,12 @@ def display_results(output_paths, rq_dict):
         df = pd.read_json(path, lines=True)
 
         extracted_texts = [txt for sublist in df["text"] for txt in sublist]
-        answer, quotes = summarize_and_quote(extracted_texts, question)
+
+        if test_mode:
+            answer = f"(TEST) This is a mock summary for: {question}"
+            quotes = extracted_texts[:3]
+        else:
+            answer, quotes = summarize_and_quote(extracted_texts, question)
 
         quote_elements = []
         for i, row in df.iterrows():
