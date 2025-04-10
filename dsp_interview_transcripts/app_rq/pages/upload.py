@@ -51,10 +51,11 @@ def handle_upload(contents, filename):
 
     Create session ID.
     """
-    if contents is None:
-        return "", None
     # generate new session ID
     session_id = str(uuid.uuid4())
+    if contents is None:
+        return "", None, session_id
+
     return f"Uploaded file: {filename}", contents, session_id
 
 

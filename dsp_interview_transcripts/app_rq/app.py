@@ -9,11 +9,12 @@ from style import NESTA_COLOURS
 from style import SIDEBAR_STYLE
 
 
-# from pathlib import Path
-# import os
-# import uuid
-
-app = dash.Dash(__name__, use_pages=True, external_stylesheets=[dbc.themes.BOOTSTRAP])
+app = dash.Dash(
+    __name__,
+    use_pages=True,
+    external_stylesheets=[dbc.themes.BOOTSTRAP],
+    suppress_callback_exceptions=True,
+)
 app.title = "Multi-page Interview Analysis App"
 
 sidebar = html.Div(
@@ -46,10 +47,11 @@ app.layout = html.Div(
         dcc.Store(id="stored-data"),  # contains "contents" i.e. encoded content of uploaded csv
         dcc.Store(id="stored-column-info"),  # names for the columns in the input data
         dcc.Store(id="stored-output-paths"),  # LLM analysis: one output path per RQ
-        dcc.Store(id="stored-rqs"),
+        dcc.Store(id="stored-rqs"),  # store for rq_dict
         dcc.Store(id="stored-original-df"),
         dcc.Store(id="session-id"),  # session ID for each user
         dcc.Store(id="stored-topic-viz"),  # output df_vis from topic modelling
+        dcc.Store(id="output-dir"),  # output dir for the session. This gets modified by test_mode on the LLM page
         dbc.Modal(
             [
                 dbc.ModalHeader(dbc.ModalTitle("Conversation View")),
@@ -61,30 +63,6 @@ app.layout = html.Div(
         ),
     ]
 )
-
-# app.layout = dbc.Container(
-#     [dbc.Row([dbc.Col(sidebar, width=3), dbc.Col(page_container, width=9)])],
-#     fluid=True,
-# )
-
-# app.layout.children += [
-#     dcc.Store(id="stored-data"),  # contains "contents" i.e. encoded content of uploaded csv
-#     dcc.Store(id="stored-column-info"),  # names for the columns in the data
-#     dcc.Store(id="stored-output-paths"),  # one output path per RQ
-#     dcc.Store(id="stored-rqs"),
-#     dcc.Store(id="stored-original-df"),
-#     dcc.Store(id="session-id"),  # session ID for each user
-#     # store the clicked quote
-#     dbc.Modal(
-#         [
-#             dbc.ModalHeader(dbc.ModalTitle("Conversation View")),
-#             dbc.ModalBody(id="modal-body"),
-#         ],
-#         id="quote-modal",
-#         size="xl",
-#         is_open=False,
-#     ),
-# ]
 
 if __name__ == "__main__":
     app.run(debug=True)
