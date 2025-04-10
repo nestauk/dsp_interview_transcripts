@@ -26,9 +26,9 @@ answer_prompt = PromptTemplate.from_template(
 quote_prompt = PromptTemplate.from_template(
     "Here are some documents:\n\n{context}\n\n"
     "The answer to the question '{question}' was: {answer}\n"
-    "Extract 3 direct quotes from the documents that best support this answer."
-    "Return them as a valid Python list of 3 strings. No explanation.\n"
-    'Format: ["Quote 1", "Quote 2", "Quote 3"]'
+    "Extract the 3 documents that best support this answer."
+    "Return them as a valid Python list of 3 strings. Do not modify the selected documents in any way. No explanation.\n"
+    'Format: ["Doc 1", "Doc 2", "Doc 3"]'
 )
 
 
