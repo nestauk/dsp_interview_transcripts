@@ -22,6 +22,13 @@ from pydantic import Field
 from dsp_interview_transcripts import logger
 
 
+class NameDescription(BaseModel):
+    """Model for naming and describing a group of documents."""
+
+    name: str = Field(description="Informative name for this group of documents")
+    description: str = Field(description="Description of this group of documents")
+
+
 def load_prompt_template(prompt_path: Path) -> str:
     """Load the prompt template from a file."""
     if not prompt_path.exists():

@@ -12,39 +12,15 @@ from dash import html
 from dash.exceptions import PreventUpdate
 from style import CONTENT_STYLE
 from style import NESTA_COLOURS
-from umap import UMAP
 
-from dsp_interview_transcripts import PROJECT_DIR
-from dsp_interview_transcripts.pipeline.process_data import create_context
-from dsp_interview_transcripts.pipeline.process_data import get_sentiment
 from dsp_interview_transcripts.utils.data_cleaning import clean_data
-from dsp_interview_transcripts.utils.llm_utils import *
-from dsp_interview_transcripts.utils.topic_modelling import embed_docs
-from dsp_interview_transcripts.utils.topic_modelling import init_topic_model
 from utils.dash_utils import *
 from utils.dash_utils import read_data
+from utils.topic_modelling import MODEL
+from utils.topic_modelling import get_topics_and_summaries
 
 
 dash.register_page(__name__, path="/topic_modelling", name="Visualisation")
-
-
-class NameDescription(BaseModel):
-    """Model for naming and describing a group of documents."""
-
-    name: str = Field(description="Informative name for this group of documents")
-    description: str = Field(description="Description of this group of documents")
-
-
-MODEL = "llama3.2"
-
-llm_chain = get_chain(
-    PROJECT_DIR / "dsp_interview_transcripts/pipeline/prompts/basic_prompt.txt",
-    input_vars=["docs", "keywords"],
-    output_template=NameDescription,
-    provider="ollama",
-    model=MODEL,
-    temp=0,
-)
 
 layout = html.Div(
     [  # === Topic modeling controls ===
@@ -145,7 +121,7 @@ layout = html.Div(
     style={**CONTENT_STYLE, "width": "75%", "margin": "0", "padding": "0"},
 )
 
-# Run the topic model and track status
+
 @callback(
     Output("topic-model-status", "children"),
     Output("stored-topic-viz", "data"),  # dataframe for scatterplot
@@ -156,6 +132,9 @@ layout = html.Div(
     prevent_initial_call=True,
 )
 def run_topic_model(n_clicks, num_topics, contents, column_info):
+    """
+    Run the topic model, taking as input the uploaded data and the number of topics.
+    """
     if not n_clicks or not num_topics:
         raise PreventUpdate
 
@@ -174,66 +153,12 @@ def run_topic_model(n_clicks, num_topics, contents, column_info):
 
     user_messages = interviews_df[(interviews_df[role_col] == "USER")]
 
-    docs = user_messages[text_col].tolist()
-    docs, embeddings = embed_docs(docs, save=False)
-
-    topic_model, vectorizer_model, representation_model = init_topic_model(
-        stop_words="english",
-        min_cluster_size=10,
-        hdbscan_selection_method="leaf",
-        embedding_model="all-MiniLM-L6-v2",
-        seed=42,
-        empty_reduction=False,
-        nr_topics=10,
-    )
-
-    topics, _ = topic_model.fit_transform(docs, embeddings)
-
-    new_topics = topic_model.reduce_outliers(docs, topics, strategy="embeddings")
-
-    topic_model.update_topics(
-        docs,
-        topics=new_topics,
-        top_n_words=10,
-        n_gram_range=(1, 3),
-        vectorizer_model=vectorizer_model,
-        ctfidf_model=None,
-        representation_model=representation_model,
-    )
-
-    summary_info = topic_model.get_topic_info()
-
-    results = name_topics(
-        summary_info,
-        llm_chain,
-        input_variable_dict={"docs": "Representative_Docs", "keywords": "Representation"},
-        topic_label_col="Topic",
-    )
-
-    topic_info = format_output_df(
-        topic_info=summary_info, results=results, output_fields=["name", "description"], model_name=MODEL
-    )
-
-    umap_2d = UMAP(random_state=42, n_components=2)
-    embeddings_2d = umap_2d.fit_transform(embeddings)
-
-    topic_lookup = topic_info[["Topic", "Name", "Representation", f"{MODEL}_name", f"{MODEL}_description"]]
-
-    df_vis = pd.DataFrame(embeddings_2d, columns=["x", "y"])
-    df_vis["topic"] = new_topics
-    df_vis = df_vis.merge(topic_lookup, left_on="topic", right_on="Topic", how="left")
-    df_vis["doc"] = docs
-
-    df_vis = pd.merge(
-        user_messages,
-        df_vis,
-        left_on=text_col,
-        right_on="doc",
-        how="outer",
-    )
+    df_vis, topic_lookup = get_topics_and_summaries(user_messages, text_col, num_topics)
 
     # After processing
-    return dbc.Alert(f"Topic model completed with {num_topics} topics!", color="success"), df_vis.to_dict("records")
+    return dbc.Alert(f"Topic model completed with maximum {num_topics} topics!", color="success"), df_vis.to_dict(
+        "records"
+    )
 
 
 @callback(
@@ -243,6 +168,9 @@ def run_topic_model(n_clicks, num_topics, contents, column_info):
     prevent_initial_call=True,
 )
 def update_scatter_plot(data, column_info):
+    """
+    Populate the scatterplot once the topic model has run
+    """
 
     if not data:
         raise PreventUpdate
@@ -279,7 +207,6 @@ def update_scatter_plot(data, column_info):
     return fig
 
 
-# Callback to update "Selected Point Info" panel
 @dash.callback(
     [
         Output("name-display", "children"),
@@ -292,6 +219,10 @@ def update_scatter_plot(data, column_info):
     State("stored-column-info", "data"),
 )
 def update_point_info(clickData, data, column_info):
+    """
+    When the user clicks a point on the scatterplot, show information
+    about this point in the left panel.
+    """
     if not data:
         raise PreventUpdate
 
@@ -320,7 +251,6 @@ def update_point_info(clickData, data, column_info):
     return "Topic name: N/A", "Topic description: N/A", "Conversation ID: N/A", "User response: N/A"
 
 
-# Display the conversation that the clicked point occurred in
 @callback(
     Output("conversation-view", "children"),
     Input("scatter-plot", "clickData"),
@@ -328,6 +258,10 @@ def update_point_info(clickData, data, column_info):
     State("stored-column-info", "data"),
 )
 def display_conversation(clickData, contents, column_info):
+    """
+    Display the full conversation that the clicked point occurred in,
+    with the clicked point text highlighted yellow.
+    """
     if not contents or not clickData:
         raise PreventUpdate
 
