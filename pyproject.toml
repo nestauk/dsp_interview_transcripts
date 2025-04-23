@@ -95,6 +95,10 @@ black = "^22.6.0"                         # Python style checks
 ipykernel = "^6.29.5"
 notebook = "^7.2.1"
 
+[[tool.poetry.source]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+default = false
 
 [build-system]
 requires = ["poetry-core"]
