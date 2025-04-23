@@ -65,7 +65,14 @@ def get_topics_and_summaries(
         - Assumes global variables `llm_chain` and `MODEL` are available for naming topics with LLM.
         - Assumes helper functions: `embed_docs`, `init_topic_model`, `name_topics`, and `format_output_df`.
     """
+    # Drop rows where the text column is not a string or is missing
+    user_messages = user_messages[user_messages[text_col].apply(lambda x: isinstance(x, str))]
+
+    # Convert all values to string just to be extra safe (in case of mixed types)
+    user_messages[text_col] = user_messages[text_col].astype(str)
+
     docs = user_messages[text_col].tolist()
+
     docs, embeddings = embed_docs(docs, save=False)
 
     topic_model, vectorizer_model, representation_model = init_topic_model(

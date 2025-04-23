@@ -77,19 +77,25 @@ def convert_timestamp(timestamp: str) -> Union[pd.Timestamp, pd.NaT]:
         return pd.NaT  # Return NaT (Not a Time) for invalid timestamps
 
 
-def fill_text_with_transcript(data_df: pd.DataFrame) -> pd.DataFrame:
+def fill_text_with_transcript(data_df: pd.DataFrame, text_col="text") -> pd.DataFrame:
     """
-    Fills missing values in the 'text' column with corresponding values from the 'transcript' column
-    (some users supplied audio messages that got transcribed).
+    Fills missing values in the specified text column with corresponding values from the 'transcript' column,
+    if it exists in the DataFrame.
 
     Args:
-        data_df (pd.DataFrame): DataFrame containing 'text' and 'transcript' columns.
+        data_df (pd.DataFrame): DataFrame containing the text and optionally a 'transcript' column.
+        text_col (str): Name of the text column to fill.
 
     Returns:
-        pd.DataFrame: Updated DataFrame with missing 'text' values filled from 'transcript'.
+        pd.DataFrame: Updated DataFrame with missing text values filled from 'transcript' if available.
     """
-    data_df = data_df.assign(text=lambda x: x["text"].fillna(x["transcript"]))
-    return data_df.fillna({"text": ""})
+    if "transcript" in data_df.columns:
+        data_df[text_col] = data_df[text_col].fillna(data_df["transcript"])
+
+    # Fill any remaining NaNs - eg if both 'text' and 'transcript' were NaN
+    data_df[text_col] = data_df[text_col].fillna("")
+
+    return data_df
 
 
 def add_text_length(data_df: pd.DataFrame, text_col: str = "text_clean") -> pd.DataFrame:
@@ -129,7 +135,7 @@ def replace_punct(text: str) -> str:
     return text.strip()
 
 
-def clean_data(data_df: pd.DataFrame) -> pd.DataFrame:
+def clean_data(data_df: pd.DataFrame, text_col="text") -> pd.DataFrame:
     """
     Pulls together all the previous cleaning steps
 
@@ -142,7 +148,7 @@ def clean_data(data_df: pd.DataFrame) -> pd.DataFrame:
     data_df = fill_text_with_transcript(data_df)
 
     # Fix improperly coded characters
-    data_df["text_clean"] = data_df["text"].apply(lambda x: ftfy.fix_text(x))
+    data_df["text_clean"] = data_df[text_col].apply(lambda x: ftfy.fix_text(x))
 
     # Remove emojis
     data_df["text_clean"] = data_df["text_clean"].apply(lambda x: emoji.demojize(x))

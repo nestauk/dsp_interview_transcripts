@@ -127,6 +127,6 @@ def run_batch_check(
             session_name=qid,
             output_fields=meta["fields"],
         )
-        processor.run(conversation_text_dict, batch_size=1, sleep_time=0.5)
+        processor.run(conversation_text_dict, batch_size=50, sleep_time=0.5)
         output_paths[qid] = str(outpath)
     return output_paths

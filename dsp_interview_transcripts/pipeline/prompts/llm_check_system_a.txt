@@ -3,9 +3,9 @@ that allows their heating provider to control their heating remotely.
 
 Answer the following question: {question}
 
-If applicable, provide the text(s) from the interview that led you to your answer, and identifier(s) for the text in the transcript.
+If applicable, provide the text(s) from the interview that led you to your answer, and identifier(s) corresponding to each of these texts in the transcript.
 
-When selecting identifiers or texts from the interview, copy them exactly as they appear. Do not invent or modify identifiers or text. Do not correct typos in the text. Do not summarize the text — copy it word-for-word from the transcript.
+When selecting identifiers or texts from the interview, copy them exactly as they appear. Do not invent or modify identifiers or text. Do not correct typos in the text. Do not summarize the text — copy it word-for-word from the transcript. For each text that you select, provide the exact identifier of that line in the transcript.
 
 Return your answer along with:
 - A brief explanation of why you answered the way you did.

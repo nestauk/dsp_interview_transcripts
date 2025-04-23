@@ -9,7 +9,10 @@ from dash import State
 from dash import callback
 from dash import dcc
 from dash import html
+from dash.exceptions import PreventUpdate
 
+from dsp_interview_transcripts.utils.data_cleaning import clean_data
+from utils.dash_utils import get_or_create_output_dir
 from utils.dash_utils import read_data
 
 
@@ -35,6 +38,11 @@ layout = html.Div(
         ),
         html.Div(id="upload-feedback", style={"marginTop": 10}),
         html.Div(id="column-selectors"),
+        html.Br(),
+        html.Div(
+            id="save-data-container"
+        ),  # dbc.Button("Save Data", id="save-data-btn", color="success", n_clicks=0),
+        html.Div(id="save-success-msg", style={"marginTop": 10, "color": "green"}),
     ]
 )
 
@@ -109,3 +117,52 @@ def store_column_selection(conv_id, role_col, text_col, uuid_col):
         "text_col": text_col,
         "uuid_col": uuid_col,
     }
+
+
+# show the save data button
+@callback(
+    Output("save-data-container", "children"),
+    Input("conv-id-col", "value"),
+    Input("role-col", "value"),
+    Input("text-col", "value"),
+)
+def show_save_button(conv_id, role_col, text_col):
+    """Display 'Save Data' button only when required columns are selected."""
+    if not all([conv_id, role_col, text_col]):
+        return ""
+
+    return dbc.Button("Save Data", id="save-data-btn", color="success", n_clicks=0)
+
+
+@callback(
+    Output("save-success-msg", "children"),
+    Input("save-data-btn", "n_clicks"),
+    State("stored-data", "data"),
+    State("stored-column-info", "data"),
+    State("session-id", "data"),
+    prevent_initial_call=True,
+)
+def save_cleaned_data(n_clicks, contents, column_info, session_id):
+    if not n_clicks or not contents or not column_info:
+        raise PreventUpdate
+
+    df = read_data(contents)
+    conv_id, role_col, text_col = column_info["conv_id"], column_info["role_col"], column_info["text_col"]
+    uuid_col = column_info.get("uuid_col", "uuid")
+
+    # Fill in UUIDs if needed
+    if uuid_col == "None" or not uuid_col:
+        df["uuid"] = [str(uuid.uuid4()) for _ in range(len(df))]
+        uuid_col = "uuid"
+
+    df[uuid_col] = df[uuid_col].astype(str)
+
+    print(df.head())
+    # Clean the data
+    cleaned_df = clean_data(df, text_col)
+
+    # Save to session folder
+    output_dir = get_or_create_output_dir(session_id)
+    cleaned_df.to_csv(f"{output_dir}/cleaned_data.csv", index=False)
+
+    return "✅ Data cleaned and saved! You can now continue to the next page."
