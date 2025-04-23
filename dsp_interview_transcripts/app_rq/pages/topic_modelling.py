@@ -13,7 +13,6 @@ from dash.exceptions import PreventUpdate
 from style import CONTENT_STYLE
 from style import NESTA_COLOURS
 
-from dsp_interview_transcripts.utils.data_cleaning import clean_data
 from utils.dash_utils import *
 from utils.dash_utils import get_cleaned_data
 from utils.dash_utils import get_or_create_output_dir

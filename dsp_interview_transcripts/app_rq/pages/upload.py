@@ -11,7 +11,7 @@ from dash import dcc
 from dash import html
 from dash.exceptions import PreventUpdate
 
-from dsp_interview_transcripts.utils.data_cleaning import clean_data
+from utils.data_cleaning import clean_data
 from utils.dash_utils import get_or_create_output_dir
 from utils.dash_utils import read_data
 
