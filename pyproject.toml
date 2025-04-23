@@ -99,7 +99,6 @@ notebook = "^7.2.1"
 name = "pytorch-cpu"
 url = "https://download.pytorch.org/whl/cpu"
 priority = "explicit"
-default = false
 
 [build-system]
 requires = ["poetry-core"]
