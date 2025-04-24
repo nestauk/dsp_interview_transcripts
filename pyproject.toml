@@ -62,7 +62,7 @@ openpyxl = "^3.1.5"
 langchain = "^0.3.7"
 plac = "^1.4.3"
 langchain-community = "^0.3.13"
-discovery-utils = {git = "https://github.com/nestauk/discovery_utils.git", rev = "llm-dependencies"}
+discovery-utils = {git = "https://github.com/nestauk/discovery_utils.git", rev = "llm-dependencies", extras = ["llm"]}
 dash = "^3.0.2"
 dash-bootstrap-components = "^2.0.0"
 
