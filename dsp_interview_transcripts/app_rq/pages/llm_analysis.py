@@ -22,19 +22,20 @@ from style import CONTENT_STYLE
 from style import NESTA_COLOURS
 from style import SIDEBAR_STYLE
 
+from dsp_interview_transcripts import PROJECT_DIR
+from utils.dash_utils import *
+from utils.dash_utils import get_cleaned_data
+from utils.dash_utils import get_or_create_output_dir
 from utils.llm_question_answering import build_question_prompt_dict
 from utils.llm_question_answering import convert_transcripts_df_to_dict
 from utils.llm_question_answering import normalize_uuid
 from utils.llm_question_answering import run_batch_check
-from utils.dash_utils import *
-from utils.dash_utils import get_cleaned_data
-from utils.dash_utils import get_or_create_output_dir
 from utils.llm_summarize import create_output_excel
 from utils.llm_summarize import generate_full_summary_output
 from utils.llm_summarize import generate_summaries
 
 
-PROMPT_PATH = Path("prompts/llm_check_system_a.txt")
+PROMPT_PATH = PROJECT_DIR / "dsp_interview_transcripts/prompts/llm_check_system_a.txt"
 
 dash.register_page(__name__, path="/llm_analysis", name="RQ Analysis")
 
