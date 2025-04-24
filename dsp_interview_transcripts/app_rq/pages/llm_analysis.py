@@ -35,7 +35,7 @@ from utils.llm_summarize import generate_full_summary_output
 from utils.llm_summarize import generate_summaries
 
 
-PROMPT_PATH = PROJECT_DIR / "dsp_interview_transcripts/prompts/llm_check_system_a.txt"
+PROMPT_PATH = PROJECT_DIR / "dsp_interview_transcripts/pipeline/prompts/llm_check_system_a.txt"
 
 dash.register_page(__name__, path="/llm_analysis", name="RQ Analysis")
 
