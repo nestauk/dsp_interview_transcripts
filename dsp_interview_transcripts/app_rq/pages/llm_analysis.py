@@ -41,18 +41,52 @@ dash.register_page(__name__, path="/llm_analysis", name="RQ Analysis")
 
 layout = html.Div(
     [
-        html.H3("Submit Research Questions"),
+        html.Div(
+            [
+                html.H5("How to use this tool", style={"color": "#0F294A", "marginBottom": "0.5rem"}),
+                html.P(
+                    "This tool allows you to submit your own research questions (RQs) and receive AI-generated summaries and illustrative quotes from your interview data.",
+                    style={"fontSize": "14px", "marginBottom": "0.5rem"},
+                ),
+                html.Ul(
+                    [
+                        html.Li("Enter one or more research questions in the box below (one question per line)."),
+                        html.Li(
+                            "Click 'Run Analysis' to generate summaries and pull out relevant quotes from the dataset."
+                        ),
+                        html.Li("Click on any quote to view the full conversation it came from."),
+                        html.Li(
+                            "When you're happy with the results, click 'Download Results' to export a summary table."
+                        ),
+                    ],
+                    style={"fontSize": "14px", "marginBottom": "1.5rem"},
+                ),
+                # html.P(
+                #     "You can optionally tick 'Run in test mode' to skip AI calls and use mock data for development or testing.",
+                #     style={"fontSize": "13px", "color": "#646363", "fontStyle": "italic"},
+                # ),
+            ],
+            style={"marginBottom": "1.5rem"},
+        ),
+        html.H4("Submit Research Questions", style={"color": "#0F294A", "fontWeight": "bold"}),
         dcc.Textarea(
             id="rq-textarea",
             placeholder="Enter RQs, one per line...",
-            style={"width": "100%", "height": "150px"},
+            style={
+                "width": "100%",
+                "height": "150px",
+                "border": "1px solid #ccc",
+                "padding": "10px",
+                "fontFamily": "Century Gothic",
+                "fontSize": "14px",
+            },
         ),
         html.Br(),
         dbc.Checkbox(id="test-mode-toggle", label="Run in test mode (no LLM calls)", value=True),
         html.Br(),
         dbc.Row(
             [
-                dbc.Col(dbc.Button("Run Analysis", id="run-analysis", color="primary")),
+                dbc.Col(dbc.Button("Run Analysis", id="run-analysis", className="nesta-button")),
                 dbc.Col(html.Div(id="download-btn-container")),
             ]
         ),
@@ -60,7 +94,15 @@ layout = html.Div(
         dbc.Spinner(html.Div(id="analysis-results"), size="md", color="primary", type="border"),
         html.Br(),
         dcc.Download(id="download-results"),
-    ]
+    ],
+    style={
+        **CONTENT_STYLE,
+        "width": "85%",
+        "margin": "0",
+        "padding": "2rem",
+        "fontFamily": "Century Gothic",
+        "color": "#0F294A",
+    },
 )
 
 
@@ -164,7 +206,7 @@ def run_analysis(n_clicks, session_id, column_info, rq_text, test_mode):
     # Save the output as excel
     create_output_excel(full_summary_df, output_dir)
 
-    download_btn = dbc.Button("Download Results", id="trigger-download", color="secondary", n_clicks=0)
+    download_btn = dbc.Button("Download Results", id="trigger-download", className="nesta-button", n_clicks=0)
 
     if test_mode:
         return (
@@ -246,17 +288,28 @@ def display_results(output_dir, rq_dict, session_id, column_info):
             continue
 
         quote_elements = [
-            html.Li(
-                row["text"],
-                style={"cursor": "pointer", "color": "blue", "textDecoration": "underline"},
+            html.Div(
+                f"{row['text']}",
                 id={"type": "quote", "index": row["identifier"]},
+                className="quote-block",
             )
             for _, row in temp_df.iterrows()
         ]
 
-        children.append(html.H5(f"RQ: {question}"))
-        children.append(html.P(f"**Summary Answer:** {temp_df['answer'].values[0]}"))
-        children.append(html.Ul(quote_elements))
+        # children.append(html.H5(f"RQ: {question}", style={"marginTop": "1rem", "color": "#0F294A"}))
+        # children.append(html.P(f"**Summary Answer:** {temp_df['answer'].values[0]}", style={"marginBottom": "0.5rem"}))
+        # children.append(html.Ul(quote_elements))
+        children.append(html.H4(f"RQ: {question}", style={"color": "#0F294A", "marginTop": "2rem"}))
+
+        # Add small heading for the summary
+        children.append(html.H6("Summary (LLM-generated)", style={"color": "#646363", "marginBottom": "0.25rem"}))
+
+        children.append(html.P(temp_df["answer"].values[0], style={"marginBottom": "1rem", "color": "#0F294A"}))
+
+        # Add small heading for quotes
+        children.append(html.H6("Illustrative quotes", style={"color": "#646363", "marginBottom": "0.25rem"}))
+
+        children.append(html.Div(quote_elements))
 
     return (html.Div(children),)
 
@@ -309,7 +362,8 @@ def display_conversation(n_clicks_list, session_id, column_info):
         return text
 
     conversation_display = [
-        html.Div([html.Strong(f"{row[role_col]}. "), html.Span(highlight_text(row))]) for _, row in convo_df.iterrows()
+        html.Div([html.Strong(f"{row[role_col]}. "), html.Span(highlight_text(row))], style={"marginBottom": "0.5rem"})
+        for _, row in convo_df.iterrows()
     ]
 
     return True, html.Div(conversation_display)

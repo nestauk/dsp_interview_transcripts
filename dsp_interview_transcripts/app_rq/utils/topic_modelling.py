@@ -34,7 +34,7 @@ from dsp_interview_transcripts.utils.topic_modelling import init_topic_model
 
 
 MODEL = "llama3.2"
-
+PROVIDER = "azure"  # use "azure" on AWS, use "ollama" for local testing
 BASIC_PROMPT_PATH = PROJECT_DIR / "dsp_interview_transcripts/pipeline/prompts/basic_prompt.txt"
 
 
@@ -66,7 +66,7 @@ LLM_CHAIN = get_chain(
     BASIC_PROMPT_PATH,
     input_vars=["docs", "keywords"],
     output_template=NameDescription,
-    provider="azure",
+    provider=PROVIDER,
     model=MODEL,
     temp=0,
 )
