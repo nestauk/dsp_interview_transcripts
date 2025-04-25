@@ -66,7 +66,7 @@ LLM_CHAIN = get_chain(
     BASIC_PROMPT_PATH,
     input_vars=["docs", "keywords"],
     output_template=NameDescription,
-    provider="ollama",
+    provider="azure",
     model=MODEL,
     temp=0,
 )

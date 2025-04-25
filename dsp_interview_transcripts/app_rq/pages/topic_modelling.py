@@ -16,7 +16,6 @@ from style import NESTA_COLOURS
 from utils.dash_utils import *
 from utils.dash_utils import get_cleaned_data
 from utils.dash_utils import get_or_create_output_dir
-from utils.dash_utils import read_data
 from utils.topic_modelling import MODEL
 from utils.topic_modelling import get_topics_and_summaries
 
