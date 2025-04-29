@@ -47,8 +47,18 @@ def load_prompt_template(prompt_path: Path) -> str:
         return f.read().strip()
 
 
-def get_llm(provider, model, temp):
+def get_llm(provider: str, model: str, temp: float) -> Union[AzureChatOpenAI, ChatOllama]:
+    """
+    Create and return a language model client based on the specified provider.
 
+    Args:
+        provider (str): Either 'ollama' for local testing or 'azure' for Azure OpenAI deployment.
+        model (str): Name of the model to use.
+        temp (float): Temperature setting for the model (controls randomness).
+
+    Returns:
+        Union[AzureChatOpenAI, ChatOllama]: Instantiated LLM client.
+    """
     if provider == "ollama":
         llm = ChatOllama(model=model, temperature=temp)
     elif provider == "azure":
@@ -76,8 +86,8 @@ def get_topics_and_summaries(
     user_messages: pd.DataFrame,
     text_col: str,
     num_topics: int = 10,
-    model=MODEL,
-    llm_chain=LLM_CHAIN,
+    model: str = MODEL,
+    llm_chain: Runnable = LLM_CHAIN,
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
     Performs topic modelling and summarization on the dataset uploaded by the user,
@@ -97,6 +107,8 @@ def get_topics_and_summaries(
         user_messages (pd.DataFrame): DataFrame containing user text data.
         text_col (str): Name of the column in `user_messages` that contains the text data.
         num_topics (int, optional): Desired number of topics for the model to extract. Defaults to 10.
+        model (str, optional): Name of the model to use for topic naming. Defaults to "llama3.2".
+        llm_chain (Runnable, optional): LLM chain for generating topic names and descriptions. Defaults to a pre-defined chain.
 
     Returns:
         Tuple[pd.DataFrame, pd.DataFrame]:
