@@ -10,10 +10,12 @@ from dash import callback
 from dash import dcc
 from dash import html
 from dash.exceptions import PreventUpdate
+from style import CONTENT_STYLE
+from style import NESTA_COLOURS
 
-from dsp_interview_transcripts.utils.data_cleaning import clean_data
 from utils.dash_utils import get_or_create_output_dir
 from utils.dash_utils import read_data
+from utils.data_cleaning import clean_data
 
 
 dash.register_page(__name__, path="/", name="Upload")
@@ -39,11 +41,17 @@ layout = html.Div(
         html.Div(id="upload-feedback", style={"marginTop": 10}),
         html.Div(id="column-selectors"),
         html.Br(),
-        html.Div(
-            id="save-data-container"
-        ),  # dbc.Button("Save Data", id="save-data-btn", color="success", n_clicks=0),
+        html.Div(id="save-data-container"),
         html.Div(id="save-success-msg", style={"marginTop": 10, "color": "green"}),
-    ]
+    ],
+    style={
+        **CONTENT_STYLE,
+        "width": "85%",
+        "margin": "0",
+        "padding": "2rem",
+        "fontFamily": "Century Gothic",
+        "color": "#0F294A",
+    },
 )
 
 
@@ -131,7 +139,12 @@ def show_save_button(conv_id, role_col, text_col):
     if not all([conv_id, role_col, text_col]):
         return ""
 
-    return dbc.Button("Save Data", id="save-data-btn", color="success", n_clicks=0)
+    return dbc.Button(
+        "Save Data",
+        id="save-data-btn",
+        n_clicks=0,
+        className="mt-2 nesta-button",
+    )
 
 
 @callback(

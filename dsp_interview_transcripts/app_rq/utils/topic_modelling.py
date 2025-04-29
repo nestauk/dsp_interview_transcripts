@@ -2,10 +2,26 @@
 Functions that do the heavy lifting of the topic modelling page of the app.
 Later these could be moved to FastAPI?
 """
-from typing import Tuple
+import logging
+import os
 
+from pathlib import Path
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Tuple
+from typing import Type
+from typing import Union
+
+import numpy as np
 import pandas as pd
 
+from langchain.chat_models import AzureChatOpenAI
+from langchain_community.chat_models import ChatOllama
+from langchain_core.runnables import Runnable
+from pydantic import BaseModel
+from pydantic import Field
 from umap import UMAP
 
 from dsp_interview_transcripts import PROJECT_DIR
@@ -18,12 +34,49 @@ from dsp_interview_transcripts.utils.topic_modelling import init_topic_model
 
 
 MODEL = "llama3.2"
+PROVIDER = "azure"  # use "azure" on AWS, use "ollama" for local testing
+BASIC_PROMPT_PATH = PROJECT_DIR / "dsp_interview_transcripts/pipeline/prompts/basic_prompt.txt"
 
-llm_chain = get_chain(
-    PROJECT_DIR / "dsp_interview_transcripts/pipeline/prompts/basic_prompt.txt",
+
+def load_prompt_template(prompt_path: Path) -> str:
+    """Load the prompt template from a file."""
+    if not prompt_path.exists():
+        raise FileNotFoundError(f"Prompt file not found: {prompt_path}")
+
+    with prompt_path.open("r", encoding="utf-8") as f:
+        return f.read().strip()
+
+
+def get_llm(provider: str, model: str, temp: float) -> Union[AzureChatOpenAI, ChatOllama]:
+    """
+    Create and return a language model client based on the specified provider.
+
+    Args:
+        provider (str): Either 'ollama' for local testing or 'azure' for Azure OpenAI deployment.
+        model (str): Name of the model to use.
+        temp (float): Temperature setting for the model (controls randomness).
+
+    Returns:
+        Union[AzureChatOpenAI, ChatOllama]: Instantiated LLM client.
+    """
+    if provider == "ollama":
+        llm = ChatOllama(model=model, temperature=temp)
+    elif provider == "azure":
+        llm = AzureChatOpenAI(
+            openai_api_version=os.getenv("AZURE_OPENAI_API_VERSION"),
+            azure_deployment=os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME"),
+            azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
+            openai_api_key=os.getenv("AZURE_OPENAI_API_KEY"),
+            temperature=temp,
+        )
+    return llm
+
+
+LLM_CHAIN = get_chain(
+    BASIC_PROMPT_PATH,
     input_vars=["docs", "keywords"],
     output_template=NameDescription,
-    provider="ollama",
+    provider=PROVIDER,
     model=MODEL,
     temp=0,
 )
@@ -33,8 +86,8 @@ def get_topics_and_summaries(
     user_messages: pd.DataFrame,
     text_col: str,
     num_topics: int = 10,
-    model=MODEL,
-    llm_chain=llm_chain,
+    model: str = MODEL,
+    llm_chain: Runnable = LLM_CHAIN,
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
     Performs topic modelling and summarization on the dataset uploaded by the user,
@@ -54,6 +107,8 @@ def get_topics_and_summaries(
         user_messages (pd.DataFrame): DataFrame containing user text data.
         text_col (str): Name of the column in `user_messages` that contains the text data.
         num_topics (int, optional): Desired number of topics for the model to extract. Defaults to 10.
+        model (str, optional): Name of the model to use for topic naming. Defaults to "llama3.2".
+        llm_chain (Runnable, optional): LLM chain for generating topic names and descriptions. Defaults to a pre-defined chain.
 
     Returns:
         Tuple[pd.DataFrame, pd.DataFrame]:
