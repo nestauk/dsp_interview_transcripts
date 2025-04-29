@@ -6,53 +6,6 @@ import emoji
 import ftfy
 import pandas as pd
 
-from sentence_transformers import SentenceTransformer
-from sklearn.metrics.pairwise import cosine_similarity
-
-
-# Load model
-SMALL_MODEL = SentenceTransformer("paraphrase-MiniLM-L3-v2")
-
-# Embed the target sentence
-TARGET_SENTENCE = "Are these instructions clear or do you need any further clarification?"
-TARGET_EMBEDDING = SMALL_MODEL.encode([TARGET_SENTENCE])
-
-
-def remove_preamble(
-    df: pd.DataFrame, target_embedding: list = TARGET_EMBEDDING, model: SentenceTransformer = SMALL_MODEL
-) -> pd.DataFrame:
-    """Get rid of everything up until the bot asks if the instructions are clear.
-
-    Removes all messages up to and including the first message from the bot that is highly similar
-    to the target sentence "Are these instructions clear or do you need any further clarification?".
-    Everything before this question is not considered relevant to our analysis.
-
-    Args:
-        df (pd.DataFrame): DataFrame containing conversation data with columns 'role', 'text_clean', and 'timestamp_clean'.
-        target_embedding (list): The embedding of the target sentence used for similarity comparison.
-        model (SentenceTransformer): The model used to generate embeddings for bot messages.
-
-    Returns:
-        pd.DataFrame: Filtered DataFrame with messages occurring after the cutoff timestamp.
-    """
-    # Filter BOT messages
-    bot_messages = df[df["role"] == "BOT"]
-
-    # Embed BOT messages
-    bot_embeddings = model.encode(bot_messages["text_clean"].tolist())
-
-    # Calculate cosine similarity
-    similarities = cosine_similarity(target_embedding, bot_embeddings).flatten()
-
-    # Find the index of the most similar BOT message
-    most_similar_idx = similarities.argmax()
-
-    # Get the timestamp of that message
-    cutoff_timestamp = bot_messages.iloc[most_similar_idx]["timestamp_clean"]
-
-    # Filter out messages prior to the cutoff timestamp
-    return df[df["timestamp_clean"] > cutoff_timestamp]
-
 
 def convert_timestamp(timestamp: str) -> Union[pd.Timestamp, pd.NaT]:
     """

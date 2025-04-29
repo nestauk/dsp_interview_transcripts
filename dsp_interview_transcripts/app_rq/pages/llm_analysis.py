@@ -23,7 +23,6 @@ from style import NESTA_COLOURS
 from style import SIDEBAR_STYLE
 
 from dsp_interview_transcripts import PROJECT_DIR
-from utils.dash_utils import *
 from utils.dash_utils import get_cleaned_data
 from utils.dash_utils import get_or_create_output_dir
 from utils.llm_question_answering import build_question_prompt_dict
@@ -61,10 +60,6 @@ layout = html.Div(
                     ],
                     style={"fontSize": "14px", "marginBottom": "1.5rem"},
                 ),
-                # html.P(
-                #     "You can optionally tick 'Run in test mode' to skip AI calls and use mock data for development or testing.",
-                #     style={"fontSize": "13px", "color": "#646363", "fontStyle": "italic"},
-                # ),
             ],
             style={"marginBottom": "1.5rem"},
         ),
@@ -187,8 +182,8 @@ def run_analysis(n_clicks, session_id, column_info, rq_text, test_mode):
 
     else:
         # === NORMAL MODE: run LLM ===
-        output_dir = os.path.join("outputs", session_id)
-        os.makedirs(output_dir, exist_ok=True)
+        # output_dir = os.path.join("outputs", session_id)
+        # os.makedirs(output_dir, exist_ok=True)
         output_paths = run_batch_check(conversation_dict, prompt_dict, output_dir)
 
     # Generate summaries ==============================
@@ -251,7 +246,9 @@ def download_excel(n_clicks, output_dir):
     prevent_initial_call="initial_duplicate",
 )
 def display_results(output_dir, rq_dict, session_id, column_info):
-    """Displays the summary answer and extracted quotes for each RQ."""
+    """
+    Displays the summary answer and extracted quotes for each RQ.
+    """
     if not output_dir or not rq_dict:
         return ""
 
@@ -296,9 +293,6 @@ def display_results(output_dir, rq_dict, session_id, column_info):
             for _, row in temp_df.iterrows()
         ]
 
-        # children.append(html.H5(f"RQ: {question}", style={"marginTop": "1rem", "color": "#0F294A"}))
-        # children.append(html.P(f"**Summary Answer:** {temp_df['answer'].values[0]}", style={"marginBottom": "0.5rem"}))
-        # children.append(html.Ul(quote_elements))
         children.append(html.H4(f"RQ: {question}", style={"color": "#0F294A", "marginTop": "2rem"}))
 
         # Add small heading for the summary
@@ -339,7 +333,6 @@ def display_conversation(n_clicks_list, session_id, column_info):
     df_original = get_cleaned_data(session_id)
 
     conv_id_col = column_info["conv_id"]
-    # text_col = column_info["text_col"]
     role_col = column_info["role_col"]
     uuid_col = column_info.get("uuid_col", "uuid")
     if uuid_col == "None":
