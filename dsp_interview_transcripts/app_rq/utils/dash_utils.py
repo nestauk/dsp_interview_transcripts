@@ -8,6 +8,8 @@ import pandas as pd
 
 from dash.exceptions import PreventUpdate
 
+from dsp_interview_transcripts import PROJECT_DIR
+
 
 def get_or_create_output_dir(session_id: str, test_mode: bool = False) -> str:
     """
@@ -20,7 +22,7 @@ def get_or_create_output_dir(session_id: str, test_mode: bool = False) -> str:
     Returns:
         str: Path to the output directory as a string.
     """
-    output_dir = Path("outputs") / ("mock_outputs" if test_mode else session_id)
+    output_dir = PROJECT_DIR / "outputs" / ("mock_outputs" if test_mode else session_id)
     output_dir.mkdir(parents=True, exist_ok=True)
     return str(output_dir)
 
