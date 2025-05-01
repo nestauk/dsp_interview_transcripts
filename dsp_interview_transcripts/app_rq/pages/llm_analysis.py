@@ -25,16 +25,13 @@ from style import SIDEBAR_STYLE
 from dsp_interview_transcripts import PROJECT_DIR
 from utils.dash_utils import get_cleaned_data
 from utils.dash_utils import get_or_create_output_dir
-from utils.llm_question_answering import build_question_prompt_dict
-from utils.llm_question_answering import convert_transcripts_df_to_dict
+from utils.llm_question_answering import concat_batch_check_output
 from utils.llm_question_answering import normalize_uuid
-from utils.llm_question_answering import run_batch_check
+from utils.llm_question_answering import run_batch_check_for_all_rqs
 from utils.llm_summarize import create_output_excel
 from utils.llm_summarize import generate_full_summary_output
 from utils.llm_summarize import generate_summaries
 
-
-PROMPT_PATH = PROJECT_DIR / "dsp_interview_transcripts/pipeline/prompts/llm_check_system_a.txt"
 
 dash.register_page(__name__, path="/llm_analysis", name="RQ Analysis")
 
@@ -135,56 +132,20 @@ def run_analysis(n_clicks, session_id, column_info, rq_text, test_mode):
         uuid_col = "uuid"
     df[uuid_col] = df[uuid_col].apply(normalize_uuid)
 
-    # Parse research questions
-    research_questions = rq_text.strip().splitlines()
-    rq_dict = {f"rq_{i+1}": q for i, q in enumerate(research_questions)}
-
-    prompt_template = PROMPT_PATH.read_text()
-    conversation_dict = convert_transcripts_df_to_dict(df, conv_id, role_col, "text_clean", uuid_col)
-    prompt_dict = build_question_prompt_dict(rq_dict, prompt_template)
-
     output_dir = get_or_create_output_dir(session_id, test_mode=test_mode)
 
-    # Answer questions using batch_check =========
-    # === TEST MODE: skip LLM ===
-    if test_mode:
-        # Try loading cached files if they exist
-        output_paths = {}
-        for rq_id in rq_dict:
-            mock_path = Path(f"{output_dir}/{rq_id}_output.jsonl")
-            if mock_path.exists():
-                output_paths[rq_id] = str(mock_path)
-            else:
-                # grab some random quotes from the original data
-                sample_df = df.sample(n=3)
-                mock_quotes = sample_df["text_clean"].tolist()
-                mock_ids = sample_df[uuid_col].tolist()
+    # Step 1: batch_check
+    output_paths, rq_dict = run_batch_check_for_all_rqs(
+        rq_text=rq_text,
+        cleaned_df=df,
+        output_dir=output_dir,
+        conv_col="conversation",
+        role_col="role",
+        uuid_col="uuid",
+    )
 
-                mock_path.parent.mkdir(parents=True, exist_ok=True)
-                with open(mock_path, "w") as f:
-                    for quote, q_id in zip(mock_quotes, mock_ids):
-                        f.write(
-                            json.dumps(
-                                {
-                                    "question": rq_id,
-                                    "answer": "This is a test explanation",
-                                    "text": [quote],
-                                    "identifier": [q_id],
-                                    "id": str(uuid.uuid4()),
-                                    "timestamp": "2025-04-07T00:00:00Z",
-                                    "model": "mock",
-                                    "temperature": 0,
-                                }
-                            )
-                            + "\n"
-                        )
-                output_paths[rq_id] = str(mock_path)
-
-    else:
-        # === NORMAL MODE: run LLM ===
-        # output_dir = os.path.join("outputs", session_id)
-        # os.makedirs(output_dir, exist_ok=True)
-        output_paths = run_batch_check(conversation_dict, prompt_dict, output_dir)
+    # TODO: make this available for download
+    df_output = concat_batch_check_output(rq_dict, output_paths)
 
     # Generate summaries ==============================
     per_rq_outputs, long_dfs = generate_summaries(

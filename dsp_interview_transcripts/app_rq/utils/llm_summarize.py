@@ -24,7 +24,7 @@ llm = AzureChatOpenAI(
     temperature=0,
 )
 
-answer_prompt = PromptTemplate.from_template(
+ANSWER_PROMPT = PromptTemplate.from_template(
     "Based on the following documents:\n\n{context}\n\n"
     "Answer the question: '{question}'\n"
     "Give a concise summary answer based only on the information provided."
@@ -56,7 +56,7 @@ def summarize_and_quote(texts: List[str], question: str) -> Tuple[str, List[str]
               If parsing fails, a fallback list with a single "[Parsing error]" entry is returned.
     """
     context = "\n\n".join(texts)
-    answer_chain = LLMChain(llm=llm, prompt=answer_prompt)
+    answer_chain = LLMChain(llm=llm, prompt=ANSWER_PROMPT)
     answer = answer_chain.run(context=context, question=question)
 
     quote_chain = LLMChain(llm=llm, prompt=quote_prompt)

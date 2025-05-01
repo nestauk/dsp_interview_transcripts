@@ -1,3 +1,7 @@
+"""
+Layout and backend logic for the topic mapping tab of the app.
+"""
+
 import dash
 import dash_bootstrap_components as dbc
 import plotly.express as px
@@ -105,7 +109,7 @@ layout = html.Div(
         # === Display the results of topic modelling ===
         html.Div(
             id="topic-results",
-            style={"display": "none"},  # ⬅️ hide by default
+            style={"display": "none"},  # by default, the results are hidden. They are revealed once the model has run.
             children=[
                 html.Div(
                     [

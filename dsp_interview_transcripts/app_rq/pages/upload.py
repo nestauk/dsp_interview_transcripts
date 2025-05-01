@@ -13,9 +13,9 @@ from dash.exceptions import PreventUpdate
 from style import CONTENT_STYLE
 from style import NESTA_COLOURS
 
+from dsp_interview_transcripts.utils.data_cleaning import clean_data
 from utils.dash_utils import get_or_create_output_dir
 from utils.dash_utils import read_data
-from utils.data_cleaning import clean_data
 
 
 dash.register_page(__name__, path="/", name="Upload")

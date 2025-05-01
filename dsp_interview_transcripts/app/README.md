@@ -1,4 +1,6 @@
 
+⛔ *To be archived*: the scripts in this folder are for an old version of the app. It is still deployed at [https://qualfml.dap-tools.uk/](https://qualfml.dap-tools.uk/). The newer version is in `dsp_interview_transcripts/app_rq/`. As soon as this new version is deployed, this folder should be deleted.
+
 # Set up
 
 ## Data
