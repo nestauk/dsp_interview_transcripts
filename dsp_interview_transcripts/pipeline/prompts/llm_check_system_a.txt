@@ -1,5 +1,4 @@
-I will show you an interview between a person and a bot interviewer. The person has taken part in a trial
-that allows their heating provider to control their heating remotely.
+I will show you an interview between a person and a bot interviewer.
 
 Answer the following question: {question}
 
