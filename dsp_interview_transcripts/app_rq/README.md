@@ -2,11 +2,30 @@
 
 # How to run the app locally
 
-* `cd dsp_interview_transcripts/app_rq/`
-
-* `python app_rq.py`
+```
+python dsp_interview_transcripts/app_rq/app_rq.py
+```
 
 You will see from the message in your terminal that the app is running on a url, e.g. `http://127.0.0.1:8050`. Open this in your browser to see the app.
+
+# Structure
+
+`app_rq.py`: This controls the overall layout of the app. There are also variables stored silently in the layout (`dcc.Store(...)`) that are used to store data between callbacks
+and between pages.
+
+Each page of the app has one script controlling its layout and backend logic:
+
+`pages/upload.py`: This controls the upload page, where the user can upload a dataset. In the background this gets cleaned and saved it to an interim file store.
+
+`pages/topic_modelling.py`: This controls the topic mapping page.
+
+`pages/llm_analysis.py`: This controls the question answering page, where the user can submit their research questions and get back LLM-generated answers based on the uploaded data.
+
+Styling is controlled by two files:
+
+* `style.py`
+
+* `assets/style.css` - this contains some custom css classes for the app.
 
 # Secrets needed
 
