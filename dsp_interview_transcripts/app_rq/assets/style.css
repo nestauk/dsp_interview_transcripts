@@ -10,19 +10,19 @@ body,
 }
 
 /* Styling for the tab headers */
-.tab--selected {
-    background-color: #0000FF !important;
+.tab:selected {
+    background-color: #FDB633 !important;
     color: white !important;
   }
 
   .tab {
-    background-color: lightgray;  /* Tab background when not selected */
-    color: black;                 /* Tab text color when not selected */
+    background-color: #0F294A !important;  /* Tab background when not selected */
+    color: white !important;                 /* Tab text color when not selected */
   }
 
   /* Hover effect */
   .tab:hover {
-    background-color: #0000FF;
+    background-color: #1F3A60 !important;  /* slightly lighter than the main navy */
     color: white;
   }
 

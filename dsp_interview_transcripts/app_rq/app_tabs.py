@@ -11,18 +11,31 @@ import dash_bootstrap_components as dbc
 import pandas as pd
 import plotly.express as px
 
+from dash import ALL
 from dash import Input
 from dash import Output
 from dash import State
-from dash import dash_table
+from dash import ctx
 from dash import dcc
 from dash import html
 from dash.exceptions import PreventUpdate
+from layout.rq_tab import quotes_modal
+from layout.rq_tab import rq_tab
+from layout.topic_mapping import topic_tab
+
+# tab layouts
+from layout.upload import upload_tab
 from style import NESTA_COLOURS
 
 from dsp_interview_transcripts.utils.data_cleaning import clean_data
 from utils.dash_utils import get_cleaned_data
 from utils.dash_utils import get_or_create_output_dir
+from utils.llm_question_answering import concat_batch_check_output
+from utils.llm_question_answering import normalize_uuid
+from utils.llm_question_answering import run_batch_check_for_all_rqs
+from utils.llm_summarize import create_output_excel
+from utils.llm_summarize import generate_full_summary_output
+from utils.llm_summarize import generate_summaries
 from utils.topic_modelling import MODEL
 from utils.topic_modelling import get_topics_and_summaries
 
@@ -33,7 +46,18 @@ app = dash.Dash(
     external_stylesheets=[dbc.themes.BOOTSTRAP],
     suppress_callback_exceptions=True,
 )
-app.title = "Multi-Tab Text Analysis"
+app.title = "Multi-Tab Interview Analysis"
+
+navbar = dbc.Navbar(
+    dbc.Container(
+        [
+            dbc.NavbarBrand("Thematic AI", className="ms-2"),
+        ]
+    ),
+    color="#0F294A",
+    dark=True,
+    className="mb-4",
+)
 
 # App layout with two tabs: Upload & Word Count
 app.layout = html.Div(
@@ -43,205 +67,59 @@ app.layout = html.Div(
         dcc.Store(id="column-store"),  # stores {'conv_id', 'role', 'text', 'uuid'}
         dcc.Store(id="session-id"),  # session identifier
         dcc.Store(id="stored-topic-viz"),  # dataframe for scatter plot
-        # Tabs component
-        dcc.Tabs(
-            id="tabs",
-            value="tab-upload",
-            children=[
-                dcc.Tab(label="1. Upload & Select", value="tab-upload"),
-                dcc.Tab(label="2. Topic mapping", value="tab-topic"),
-            ],
-        ),
-        # Upload tab content
-        html.Div(
-            id="tab-upload",
-            children=[
-                html.H3("Upload CSV"),
-                dcc.Upload(
-                    id="upload-data",
-                    children=html.Div(["Drag and Drop or ", html.A("Select a CSV File")]),
-                    style={
-                        "width": "100%",
-                        "height": "60px",
-                        "lineHeight": "60px",
-                        "borderWidth": "1px",
-                        "borderStyle": "dashed",
-                        "borderRadius": "5px",
-                        "textAlign": "center",
-                    },
-                    multiple=False,
+        dcc.Store(id="stored-output-paths"),  # for RQ analysis
+        dcc.Store(id="stored-rqs"),  # for RQ analysis
+        dcc.Store(id="output-dir"),  # for RQ analysis
+        dbc.Container(
+            [
+                navbar,
+                # Tabs component
+                dcc.Tabs(
+                    id="tabs",
+                    value="tab-upload",
+                    children=[
+                        dcc.Tab(
+                            label="1. Upload & Select",
+                            value="tab-upload",
+                        ),
+                        dcc.Tab(
+                            label="2. Topic mapping",
+                            value="tab-topic",
+                        ),
+                        dcc.Tab(
+                            label="3. RQ Analysis",
+                            value="tab-rq",
+                        ),
+                    ],
                 ),
-                html.Div(id="upload-feedback", style={"marginTop": 10}),
-                html.Hr(),
-                # Column selectors
                 html.Div(
                     [
-                        html.H5("Select columns"),
-                        dbc.Row(
-                            [
-                                dbc.Col(dcc.Dropdown(id="conv-id-dropdown", placeholder="Conversation ID column")),
-                                dbc.Col(dcc.Dropdown(id="role-dropdown", placeholder="Role column")),
-                                dbc.Col(dcc.Dropdown(id="text-dropdown", placeholder="Text column")),
-                                dbc.Col(dcc.Dropdown(id="uuid-dropdown", placeholder="UUID column")),
-                            ]
-                        ),
-                        html.Br(),
-                        dbc.Button("Save", id="save-btn", color="primary"),
-                        html.Div(id="save-feedback", style={"marginTop": 10, "color": "green"}),
-                    ],
-                    id="column-section",
-                    style={"display": "none"},
-                ),
-            ],
-            style={"display": "block"},
-        ),
-        html.Div(
-            id="tab-topic",
-            children=[
-                html.H3("Topic Mapping"),
-                dbc.Card(
-                    dbc.CardBody(
-                        dbc.Row(
-                            [
-                                dbc.Col(
-                                    [
-                                        html.Label("Number of topics"),
-                                        dcc.Input(
-                                            id="num-topics-input",
-                                            type="number",
-                                            min=2,
-                                            max=100,
-                                            step=1,
-                                            value=10,
-                                            style={"width": "100%"},
-                                        ),
-                                    ],
-                                    width=3,
-                                ),
-                                dbc.Col(
-                                    dbc.Button("Run", id="run-topic-model-btn", className="mt-2 nesta-button"), width=2
-                                ),
-                                dbc.Col(
-                                    dbc.Spinner(html.Div(id="topic-model-status"), size="sm", color="info"), width=7
-                                ),
-                            ]
-                        )
-                    ),
-                    className="mb-3",
-                ),
-                html.Div(
-                    id="topic-results",
-                    style={
-                        "display": "none"
-                    },  # by default, the results are hidden. They are revealed once the model has run.
-                    children=[
-                        html.Div(
-                            [
-                                html.H4(
-                                    "Topic descriptions and key words",
-                                    style={"color": "#0F294A", "fontWeight": "bold", "marginTop": "20px"},
-                                ),
-                                dash_table.DataTable(
-                                    id="topic-lookup-table",
-                                    page_action="none",
-                                    style_table={"height": "500px", "overflowY": "auto", "overflowX": "auto"},
-                                    style_cell={
-                                        "fontFamily": "Century Gothic",
-                                        "fontSize": "14px",
-                                        "textAlign": "left",
-                                    },
-                                    style_header={
-                                        "backgroundColor": "#0F294A",
-                                        "color": "white",
-                                        "fontWeight": "bold",
-                                        "textAlign": "center",
-                                    },
-                                    style_data={
-                                        "whiteSpace": "normal",
-                                        "height": "auto",
-                                        "fontFamily": "Century Gothic",
-                                        "fontSize": "14px",
-                                        "color": "#0F294A",
-                                    },
-                                    sort_action="native",
-                                ),
-                                html.Br(),
-                                dbc.Button(
-                                    "Download Topics as CSV",
-                                    id="download-topic-csv-btn",
-                                    className="nesta-button",
-                                ),
-                                dcc.Download(id="download-topic-csv"),
-                            ]
-                        ),
-                        html.Div(
-                            children=[
-                                html.P(
-                                    "This tab contains an interactive visualisation to help you explore user responses within each topic. Each user response is shown as a point."
-                                ),
-                                html.P(
-                                    "Click a point on the plot to find out more information about it. On the left, you will see information about the topic it is in, "
-                                    "the ID of the conversation it occurred in, and the response itself."
-                                ),
-                            ]
-                        ),
-                        # First row: Information Panel and Scatterplot
-                        html.Div(
-                            [
-                                # Information panel (left one-third)
-                                html.Div(
-                                    id="info-panel",
-                                    style={
-                                        "width": "25%",
-                                        "display": "inline-block",
-                                        "verticalAlign": "top",
-                                        "padding": "20px",
-                                        "borderRight": "2px solid #ccc",
-                                        "backgroundColor": "#F6F8FA",
-                                        "fontFamily": "Century Gothic",
-                                        "fontSize": "14px",
-                                        "color": "#0F294A",
-                                    },
-                                    children=[
-                                        html.H4(
-                                            "Selected Point Info", style={"color": "#0F294A", "fontWeight": "bold"}
-                                        ),
-                                        html.Div(id="name-display", style={"marginBottom": "10px"}),
-                                        html.Div(id="description-display", style={"marginBottom": "10px"}),
-                                        html.Div(id="conversation-display", style={"marginBottom": "10px"}),
-                                        html.Div(id="text-clean-display", style={"marginBottom": "10px"}),
-                                    ],
-                                ),
-                                # Scatterplot (right two-thirds)
-                                html.Div(
-                                    [dcc.Graph(id="scatter-plot")],
-                                    style={"width": "75%", "display": "inline-block"},
-                                ),
-                            ],
-                            style={"width": "100%", "marginBottom": "20px"},
-                        ),
-                        html.Div(
-                            children=[
-                                html.P(
-                                    "When you click a point on the plot, you will see the full text of that conversation below."
-                                ),
-                                html.Div(id="conversation-view", style={"marginTop": "20px"}),
-                            ]
-                        ),
+                        # Upload tab content
+                        upload_tab,
+                        # topic mapping tab
+                        topic_tab,
+                        # rq analysis tab
+                        rq_tab,
                     ],
                 ),
+                # Modal for quotes
+                quotes_modal,
             ],
-            style={"display": "none"},
+            fluid=True,
+            style={"maxWidth": "1200px"},
         ),
     ]
 )
 
 # Callback to switch visible tab
-@app.callback(Output("tab-upload", "style"), Output("tab-topic", "style"), Input("tabs", "value"))
+@app.callback(
+    Output("tab-upload", "style"), Output("tab-topic", "style"), Output("tab-rq", "style"), Input("tabs", "value")
+)
 def switch_tab(tab):
     return (
         {"display": "block"} if tab == "tab-upload" else {"display": "none"},
         {"display": "block"} if tab == "tab-topic" else {"display": "none"},
+        {"display": "block"} if tab == "tab-rq" else {"display": "none"},
     )
 
 
@@ -537,6 +415,129 @@ def display_conversation(clickData, session_id, column_info):
         conversation_display.append(html.Div([html.Strong(f"{role}: "), html.Span(content)]))
 
     return conversation_display
+
+
+# RQ analysis callback
+@app.callback(
+    Output("analysis-results", "children"),
+    Output("stored-output-paths", "data"),
+    Output("stored-rqs", "data"),
+    Output("output-dir", "data"),
+    Output("download-btn-container", "children"),
+    Input("run-analysis", "n_clicks"),
+    State("session-id", "data"),
+    State("column-store", "data"),
+    State("rq-textarea", "value"),
+    State("test-mode-toggle", "value"),
+    prevent_initial_call=True,
+)
+def run_analysis(n_clicks, session_id, colinfo, rq_text, test_mode):
+    if not (n_clicks and session_id and colinfo and rq_text):
+        raise PreventUpdate
+    df = get_cleaned_data(session_id)
+    if colinfo["uuid"] not in df.columns:
+        df["uuid"] = [str(uuid.uuid4()) for _ in range(len(df))]
+        colinfo["uuid"] = "uuid"
+    df[colinfo["uuid"]] = df[colinfo["uuid"]].apply(normalize_uuid)
+    outdir = get_or_create_output_dir(session_id, test_mode=test_mode)
+    output_paths, rq_dict = run_batch_check_for_all_rqs(
+        rq_text=rq_text,
+        cleaned_df=df,
+        output_dir=outdir,
+        conv_col=colinfo["conv_id"],
+        role_col=colinfo["role"],
+        uuid_col=colinfo["uuid"],
+    )
+    per_rq, long_dfs = generate_summaries(rq_dict, output_paths, outdir, test_mode, colinfo["text"])
+    full_df = generate_full_summary_output(rq_dict, long_dfs, per_rq, colinfo["text"])
+    full_df.to_csv(os.path.join(outdir, "full_summary.csv"), index=False)
+    create_output_excel(full_df, outdir)
+    btn = dbc.Button("Download Results", id="trigger-download", className="nesta-button")
+    alert = dbc.Alert(
+        "Test mode: mock outputs" if test_mode else "LLM processing complete!",
+        color="info" if test_mode else "success",
+    )
+    return alert, output_paths, rq_dict, outdir, btn
+
+
+@app.callback(
+    Output("download-results", "data"),
+    Input("trigger-download", "n_clicks"),
+    State("output-dir", "data"),
+    prevent_initial_call=True,
+)
+def download_excel(n_clicks, outdir):
+    path = os.path.join(outdir, "full_summary.xlsx")
+    if not (n_clicks and os.path.exists(path)):
+        raise PreventUpdate
+    return dcc.send_file(path)
+
+
+@app.callback(
+    Output("analysis-results", "children", allow_duplicate=True),
+    Input("output-dir", "data"),
+    State("stored-rqs", "data"),
+    State("session-id", "data"),
+    State("column-store", "data"),
+    prevent_initial_call="initial_duplicate",
+)
+def display_results(outdir, rq_dict, session_id, colinfo):
+    if not (outdir and rq_dict):
+        return ""
+    full_summary = pd.read_csv(os.path.join(outdir, "full_summary.csv"))
+    df_orig = get_cleaned_data(session_id)
+    uuid_col = colinfo["uuid"]
+    children = []
+    for _, q in rq_dict.items():
+        temp = full_summary[full_summary["question"] == q]
+        if temp.empty:
+            children.append(html.Div(f"No output for: {q}", style={"color": "red"}))
+            continue
+        temp = temp[temp["identifier"].isin(df_orig[uuid_col].astype(str))]
+        if temp.empty:
+            children.append(html.Div(f"No valid quotes for: {q}", style={"color": "orange"}))
+            continue
+        quote_elems = []
+        for _, row in temp.iterrows():
+            quote_elems.append(
+                html.Div(row["text"], id={"type": "quote", "index": row["identifier"]}, className="quote-block")
+            )
+        children.append(html.H4(f"RQ: {q}", style={"marginTop": "1rem"}))
+        children.append(html.H6("Summary", style={"color": "grey"}))
+        children.append(html.P(temp["answer"].iloc[0]))
+        children.append(html.H6("Illustrative quotes", style={"color": "grey"}))
+        children.append(html.Div(quote_elems))
+    return (html.Div(children),)
+
+
+@app.callback(
+    Output("quote-modal", "is_open"),
+    Output("modal-body", "children"),
+    Input({"type": "quote", "index": ALL}, "n_clicks"),
+    State("session-id", "data"),
+    State("column-store", "data"),
+)
+def display_conversation(n_list, session_id, colinfo):
+    if not any(n_list):
+        raise PreventUpdate
+    triggered = ctx.triggered_id
+    uid = triggered["index"]
+    df = get_cleaned_data(session_id)
+    conv_id = colinfo["conv_id"]
+    role = colinfo["role"]
+    convo = df[df[colinfo["uuid"]] == uid]
+    cid = convo[conv_id].iloc[0]
+    subset = df[df[conv_id] == cid]
+    body = [
+        html.Div(
+            [
+                html.Strong(f"{r[role]}: "),
+                html.Span(html.Mark(r["text_clean"]) if r[colinfo["uuid"]] == uid else r["text_clean"]),
+            ]
+        )
+        for _, r in subset.iterrows()
+    ]
+    return True, html.Div(body)
 
 
 if __name__ == "__main__":
