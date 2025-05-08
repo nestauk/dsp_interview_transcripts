@@ -18,6 +18,10 @@ from utils.topic_modelling import MODEL
 from utils.topic_modelling import get_topics_and_summaries
 
 
+# TODO: better way of identifying user messages
+INTERVIEWER_TERMS = ["BOT", "interviewer"]
+
+
 def register_topic_callbacks(app):
     # Topic modelling callback
     @app.callback(
@@ -40,7 +44,7 @@ def register_topic_callbacks(app):
         output_dir = get_or_create_output_dir(session_id)
         df = get_cleaned_data(session_id)
         # Filter user messages
-        user_msgs = df[df[colinfo["role"]] == "USER"]
+        user_msgs = df[~df[colinfo["role"]].isin(INTERVIEWER_TERMS)]
         # Run topic model
         df_vis, topic_lookup = get_topics_and_summaries(user_msgs, colinfo["text"], num_topics)
         # Save lookup

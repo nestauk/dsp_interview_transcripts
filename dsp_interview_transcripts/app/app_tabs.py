@@ -47,7 +47,8 @@ navbar = dbc.Navbar(
 
 # App layout with two tabs: Upload & Word Count
 app.layout = html.Div(
-    [
+    # style={"backgroundColor": "#0F294A", "minHeight": "100vh", "color": "white"},
+    children=[
         # Stores to hold the uploaded DataFrame, selected columns, and session
         dcc.Store(id="data-store"),  # stores raw uploaded data
         dcc.Store(id="column-store"),  # stores {'conv_id', 'role', 'text', 'uuid'}
@@ -64,11 +65,12 @@ app.layout = html.Div(
                     id="tabs",
                     value="tab-upload",
                     children=[
-                        dcc.Tab(label="1. Upload & Select", value="tab-upload", selected_style={"color": "#FDB633"}),
-                        dcc.Tab(label="2. Topic mapping", value="tab-topic", selected_style={"color": "#FDB633"}),
-                        dcc.Tab(label="3. RQ Analysis", value="tab-rq", selected_style={"color": "#FDB633"}),
+                        dcc.Tab(label="1. Upload data ⬆️", value="tab-upload", children=[]),
+                        dcc.Tab(label="2. Deductive / topic mapping analysis 🕸️", value="tab-topic", children=[]),
+                        dcc.Tab(label="3. Inductive / framework analysis 🔍", value="tab-rq", children=[]),
                     ],
                 ),
+                # html.Div(id="tab-content"),
                 html.Div(
                     [
                         upload_tab,
@@ -84,6 +86,7 @@ app.layout = html.Div(
         ),
     ]
 )
+
 
 # Callback to switch visible tab
 @app.callback(

@@ -3,23 +3,16 @@
 # How to run the app locally
 
 ```
-python dsp_interview_transcripts/app_rq/app_rq.py
+python dsp_interview_transcripts/app/app_tabs.py
 ```
 
 You will see from the message in your terminal that the app is running on a url, e.g. `http://127.0.0.1:8050`. Open this in your browser to see the app.
 
 # Structure
 
-`app_rq.py`: This controls the overall layout of the app. There are also variables stored silently in the layout (`dcc.Store(...)`) that are used to store data between callbacks
-and between pages.
+`app_tabs.py`: This controls the overall layout of the app. There are also variables stored silently in the layout (`dcc.Store(...)`) that are used to store data between callbacks and between tabs.
 
-Each page of the app has one script controlling its layout and backend logic:
-
-`pages/upload.py`: This controls the upload page, where the user can upload a dataset. In the background this gets cleaned and saved it to an interim file store.
-
-`pages/topic_modelling.py`: This controls the topic mapping page.
-
-`pages/llm_analysis.py`: This controls the question answering page, where the user can submit their research questions and get back LLM-generated answers based on the uploaded data.
+Each page of the app has one script controlling its layout in `layout/`, and a separate one containing its backend logic in `callbacks/`.
 
 Styling is controlled by two files:
 
@@ -61,7 +54,7 @@ sudo apt-get install manpages-dev
 
 ## Run the app
 
-* Run the app with `nohup python dsp_interview_transcripts/app_rq/app_rq.py > app.log 2>&1 &`
+* Run the app with `nohup python dsp_interview_transcripts/app/app_tabs.py > app.log 2>&1 &`
 
 ## Access
 Currently this app is available to anyone on the Nesta VPN.

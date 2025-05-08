@@ -85,7 +85,7 @@ def register_upload_callbacks(app):
         prevent_initial_call=True,
     )
     def save_columns_and_clean(n, json_data, conv_col, role_col, text_col, uuid_col, session_id):
-        if not (n and json_data and conv_col and role_col and text_col and uuid_col and session_id):
+        if not (n and json_data and conv_col and role_col and text_col and session_id):
             raise PreventUpdate
         df = pd.read_json(json_data, orient="split")
         # Ensure UUID column
