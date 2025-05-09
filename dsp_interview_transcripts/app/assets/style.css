@@ -57,12 +57,12 @@ html, body, [class*="css"] {
 }
 
 .nesta-tab-container {
-  background-color: white !important;
+  background-color: white;
   padding: 20px;
   margin-top: 20px;
   border-radius: 12px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  color: #0F294A !important;
+  color: #0F294A;
 }
 
 /* Headings */
@@ -98,24 +98,54 @@ h1, h2, h3, h4 {
 
 /* Quote blocks */
 .quote-block {
-  background-color: #1F3A60;
-  color: white;
-  border-radius: 6px;
-  padding: 12px 16px;
-  margin-bottom: 12px;
-  font-size: 15px;
-  font-style: italic;
+  background-color: #1F3A60 !important;
+  color: white !important;
+  border-radius: 6px !important;
+  padding: 12px 16px !important;
+  margin-bottom: 10px !important;
+  font-size: 15px !important;
+  font-family: "Century Gothic", sans-serif !important;
+  font-style: italic !important;
+  quotes: "“" "”" "‘" "’";
+  display: block !important;           /* <- FORCE block layout */
+  width: 100% !important;              /* <- Fill container */
+  box-sizing: border-box !important;  /* <- Respect padding */
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+  cursor: pointer;
+  transition: background-color 0.2s ease-in-out;
+}
+
+.quote-block::before {
+  content: open-quote;
+}
+.quote-block::after {
+  content: close-quote;
 }
 
 .quote-block:hover {
-  background-color: #FDB633 !important;
+  background-color: #FDB633 !important;  /* Nesta yellow */
   color: #0F294A !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  font-style: bold;
 }
 
 /* Modal overlay darken */
 .modal-backdrop.show {
   opacity: 0.8 !important;
 }
+
+.modal-content {
+  background-color: white !important;
+  color: #0F294A !important;
+}
+
+.modal-body {
+  font-family: "Century Gothic", sans-serif;
+  font-size: 15px;
+}
+
 
 /* Scrollbars (optional) */
 ::-webkit-scrollbar {

@@ -11,6 +11,7 @@ packages = [
 
 [tool.poetry.dependencies]
 python = "^3.11"
+dash-auth = "^2.3.0"
 
 [tool.poetry.group.core]
 optional = true

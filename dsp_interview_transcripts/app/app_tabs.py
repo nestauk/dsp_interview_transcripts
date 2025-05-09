@@ -7,6 +7,7 @@ import uuid
 from collections import Counter
 
 import dash
+import dash_auth
 import dash_bootstrap_components as dbc
 
 from callbacks.rq_callbacks import register_rq_callbacks
@@ -18,6 +19,7 @@ from dash import State
 from dash import dcc
 from dash import html
 from dash.exceptions import PreventUpdate
+from dotenv import load_dotenv
 from layout.rq_tab import quotes_modal
 from layout.rq_tab import rq_tab
 from layout.topic_mapping import topic_tab
@@ -26,13 +28,16 @@ from layout.topic_mapping import topic_tab
 from layout.upload import upload_tab
 
 
+load_dotenv()
+
 # Initialize the Dash app
 app = dash.Dash(
     __name__,
     external_stylesheets=[dbc.themes.BOOTSTRAP],
     suppress_callback_exceptions=True,
 )
-app.title = "Multi-Tab Interview Analysis"
+
+auth = dash_auth.BasicAuth(app, {os.environ.get("VALID_USERNAME"): os.environ.get("VALID_PASSWORD")})
 
 navbar = dbc.Navbar(
     dbc.Container(

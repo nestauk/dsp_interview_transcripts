@@ -104,7 +104,19 @@ def register_rq_callbacks(app):
             quote_elems = []
             for _, row in temp.iterrows():
                 quote_elems.append(
-                    html.Div(row["text"], id={"type": "quote", "index": row["identifier"]}, className="quote-block")
+                    html.Div(
+                        f"{row['text']}",
+                        id={"type": "quote", "index": row["identifier"]},
+                        className="quote-block",
+                        style={
+                            "backgroundColor": "#0F294A",
+                            "color": "white",
+                            "padding": "10px",
+                            "fontStyle": "italic",
+                            "borderRadius": "5px",
+                            "marginBottom": "0.5rem",
+                        },
+                    ),
                 )
             children.append(html.H4(f"RQ: {q}", style={"marginTop": "1rem"}))
             children.append(html.H6("Summary", style={"color": "grey"}))
