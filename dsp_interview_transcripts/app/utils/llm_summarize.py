@@ -30,7 +30,7 @@ ANSWER_PROMPT = PromptTemplate.from_template(
     "Give a concise summary answer based only on the information provided."
 )
 
-quote_prompt = PromptTemplate.from_template(
+QUOTE_PROMPT = PromptTemplate.from_template(
     "Here are some documents:\n\n{context}\n\n"
     "The answer to the question '{question}' was: {answer}\n"
     "Extract the 5 documents that best support this answer."
@@ -43,6 +43,9 @@ def summarize_and_quote(texts: List[str], question: str) -> Tuple[str, List[str]
     """
     Generate a concise summary answer and extract supporting quotes for a research question
     based on a list of input texts.
+
+    Note that this function involves *TWO* llm calls: one to generate the summary based on quotes from every
+    conversation; one to select the quotes that best support the summary.
 
     Args:
         texts (List[str]): A list of textual excerpts (e.g., sentences or paragraphs)
@@ -59,7 +62,7 @@ def summarize_and_quote(texts: List[str], question: str) -> Tuple[str, List[str]
     answer_chain = LLMChain(llm=llm, prompt=ANSWER_PROMPT)
     answer = answer_chain.run(context=context, question=question)
 
-    quote_chain = LLMChain(llm=llm, prompt=quote_prompt)
+    quote_chain = LLMChain(llm=llm, prompt=QUOTE_PROMPT)
     quotes = quote_chain.run(context=context, question=question, answer=answer)
 
     try:
@@ -91,13 +94,18 @@ def generate_single_summary(
     Returns:
         Tuple[pd.DataFrame, str, List[str]]: Exploded DataFrame, summary answer, and list of quotes.
     """
+
+    # Temporary fix: keep only rows where the number of quotes returned by the LLM
+    # and the number of identifiers returned exactly match
+    df_filtered = df[df["text"].apply(len) == df["identifier"].apply(len)]
+
     try:
         # Attempt to explode both text and identifier
-        df_long = df.explode([text_col, "identifier"])
+        df_long = df_filtered.explode([text_col, "identifier"])
     except Exception as e:
         print(f"⚠️ Exploding both '{text_col}' and 'identifier' failed due to: {e}")
         print("Falling back to exploding only on text.")
-        df_long = df.explode(text_col)
+        df_long = df_filtered.explode(text_col)
 
     df_long.to_csv(f"{output_dir}/{rq_id}_long.csv", index=False)
 
