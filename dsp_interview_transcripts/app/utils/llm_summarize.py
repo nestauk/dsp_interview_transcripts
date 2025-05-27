@@ -94,13 +94,18 @@ def generate_single_summary(
     Returns:
         Tuple[pd.DataFrame, str, List[str]]: Exploded DataFrame, summary answer, and list of quotes.
     """
+
+    # Temporary fix: keep only rows where the number of quotes returned by the LLM
+    # and the number of identifiers returned exactly match
+    df_filtered = df[df["text"].apply(len) == df["identifier"].apply(len)]
+
     try:
         # Attempt to explode both text and identifier
-        df_long = df.explode([text_col, "identifier"])
+        df_long = df_filtered.explode([text_col, "identifier"])
     except Exception as e:
         print(f"⚠️ Exploding both '{text_col}' and 'identifier' failed due to: {e}")
         print("Falling back to exploding only on text.")
-        df_long = df.explode(text_col)
+        df_long = df_filtered.explode(text_col)
 
     df_long.to_csv(f"{output_dir}/{rq_id}_long.csv", index=False)
 
