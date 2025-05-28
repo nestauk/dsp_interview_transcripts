@@ -130,6 +130,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+app_env/
 
 # Spyder project settings
 .spyderproject
@@ -171,10 +172,12 @@ dsp_interview_transcripts/app/data/*
 dsp_interview_transcripts/notebooks/outputs/*
 dsp_interview_transcripts/notebooks/*.csv
 dsp_interview_transcripts/notebooks/*.xlsx
+dsp_interview_transcripts/notebooks/LLM_tests/*.jsonl
 # output data, figures etc
 outputs/*
 !/outputs/*.md
 dsp_interview_transcripts/pipeline/bit_france/outputs/*
+dsp_interview_transcripts/app_rq/outputs/*
 # DS store in any folder
 **/.DS_Store
 

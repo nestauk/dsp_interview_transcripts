@@ -1,3 +1,5 @@
+import os
+
 from pathlib import Path
 from typing import Any
 from typing import Dict
@@ -8,6 +10,8 @@ from typing import Union
 
 import pandas as pd
 
+from langchain.chains import LLMChain
+from langchain.chat_models import AzureChatOpenAI
 from langchain.prompts import PromptTemplate
 from langchain_community.chat_models import ChatOllama
 from langchain_core.output_parsers import JsonOutputParser
@@ -16,6 +20,13 @@ from pydantic import BaseModel
 from pydantic import Field
 
 from dsp_interview_transcripts import logger
+
+
+class NameDescription(BaseModel):
+    """Model for naming and describing a group of documents."""
+
+    name: str = Field(description="Informative name for this group of documents")
+    description: str = Field(description="Description of this group of documents")
 
 
 def load_prompt_template(prompt_path: Path) -> str:
@@ -27,10 +38,26 @@ def load_prompt_template(prompt_path: Path) -> str:
         return f.read().strip()
 
 
+def get_llm(provider, model, temp):
+
+    if provider == "ollama":
+        llm = ChatOllama(model=model, temperature=temp)
+    elif provider == "azure":
+        llm = AzureChatOpenAI(
+            openai_api_version=os.getenv("AZURE_OPENAI_API_VERSION"),
+            azure_deployment=os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME"),
+            azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
+            openai_api_key=os.getenv("AZURE_OPENAI_API_KEY"),
+            temperature=temp,
+        )
+    return llm
+
+
 def get_chain(
     prompt_path: Union[Path, str],
     input_vars: List[str],
     output_template: Type[BaseModel],
+    provider="ollama",
     model: str = "llama3.2",
     temp: float = 0,
 ):
@@ -59,9 +86,9 @@ def get_chain(
         partial_variables={"format_instructions": parser.get_format_instructions()},
     )
 
-    ollama_model = ChatOllama(model=model, temperature=temp)
+    llm = get_llm(provider, model, temp)
 
-    llm_chain = final_prompt | ollama_model | parser
+    llm_chain = final_prompt | llm | parser
 
     return llm_chain
 

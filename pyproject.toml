@@ -11,9 +11,16 @@ packages = [
 
 [tool.poetry.dependencies]
 python = "^3.11"
+dash-auth = "^2.3.0"
+
+[tool.poetry.group.core]
+optional = true
+
+[tool.poetry.group.core.dependencies]
 llvmlite = "^0.43.0"
 bertopic = "^0.16.3"
 sentence-transformers = "^3.1.1"
+torch = { version = "^2.4.0+cpu", source = "pytorch-cpu" }
 scikit-learn = "^1.5.2"
 jupyter = "^1.1.1"
 python-dotenv = "^1.0.1"
@@ -25,7 +32,6 @@ streamlit = "^1.39.0"
 nltk = "^3.9.1"
 numpy = "<2.0"
 transformers = "^4.45.2"
-torch = "^2.4.1"
 wordcloud = "^1.9.3"
 seaborn = "^0.13.2"
 openpyxl = "^3.1.5"
@@ -36,7 +42,30 @@ python-docx = "^1.1.2"
 sentencepiece = "^0.2.0"
 quarto = "^0.1.0"
 langchain-community = "^0.3.13"
-discovery-utils = {git = "https://github.com/nestauk/discovery_utils.git", rev = "78-mission-radar-prototype"}
+discovery-utils = {git = "https://github.com/nestauk/discovery_utils.git", rev = "llm-dependencies"}
+dash = "^3.0.2"
+dash-bootstrap-components = "^2.0.0"
+
+[tool.poetry.group.app]
+optional = true
+
+[tool.poetry.group.app.dependencies]
+llvmlite = "^0.43.0"
+bertopic = "^0.16.3"
+sentence-transformers = "^3.1.1"
+torch = { version = "^2.4.0+cpu", source = "pytorch-cpu" }
+python-dotenv = "^1.0.1"
+emoji = "^2.13.2"
+ftfy = "^6.2.3"
+nltk = "^3.9.1"
+numpy = "<2.0"
+openpyxl = "^3.1.5"
+langchain = "^0.3.7"
+plac = "^1.4.3"
+langchain-community = "^0.3.13"
+discovery-utils = {git = "https://github.com/nestauk/discovery_utils.git", rev = "llm-dependencies", extras = ["llm"]}
+dash = "^3.0.2"
+dash-bootstrap-components = "^2.0.0"
 
 [tool.poetry.group.test]
 optional = true
@@ -67,6 +96,10 @@ black = "^22.6.0"                         # Python style checks
 ipykernel = "^6.29.5"
 notebook = "^7.2.1"
 
+[[tool.poetry.source]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+priority = "explicit"
 
 [build-system]
 requires = ["poetry-core"]

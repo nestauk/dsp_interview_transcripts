@@ -1,70 +1,70 @@
-
-# Set up
-
-## Data
-Download data and store it in `dsp_interview_transcripts/app/data/`
-
-The files you need are:
-
-* [s3://dsp-qualfml/bus/raw/qual_af_transcripts_cleaned.csv](https://eu-west-2.console.aws.amazon.com/s3/object/dsp-qualfml?region=eu-west-2&bucketType=general&prefix=bus/raw/qual_af_transcripts_cleaned.csv)
-
-* [s3://dsp-qualfml/bus/test/interim/user_messages_min_len_9_w_sentiment_topics_representative_docs.csv](https://eu-west-2.console.aws.amazon.com/s3/object/dsp-qualfml?region=eu-west-2&bucketType=general&prefix=bus/test/interim/user_messages_min_len_9_w_sentiment_topics_representative_docs.csv)
-
-* [s3://dsp-qualfml/bus/test/interim/user_messages_min_len_9_w_sentiment_topics.csv](https://eu-west-2.console.aws.amazon.com/s3/object/dsp-qualfml?region=eu-west-2&bucketType=general&prefix=bus/test/interim/user_messages_min_len_9_w_sentiment_topics.csv)
-
-* [s3://dsp-qualfml/bus/test/interim/user_messages_min_len_9_w_sentiment_topics_with_names_descriptions.csv](https://eu-west-2.console.aws.amazon.com/s3/object/dsp-qualfml?region=eu-west-2&bucketType=general&prefix=bus/test/interim/user_messages_min_len_9_w_sentiment_topics_with_names_descriptions.csv)
-
-* [s3://dsp-qualfml/bus/test/final/summary_info.csv](https://eu-west-2.console.aws.amazon.com/s3/object/dsp-qualfml?region=eu-west-2&bucketType=general&prefix=bus/test/final/summary_info.csv)
-
-If we continue the app long-term, we will set up a service account to read data from s3 directly but for now you need to download and store the data locally.
-
-## Secrets
-
-You also need a `.env` file at the root of the project that contains the following keys:
-```
-VALID_USERNAME = <username>
-VALID_PASSWORD = <password>
-```
-Contact one of the project team to find out the correct username and password. Dash uses these values in `dsp_interview_transcripts/app/app_pages.py`:
-```
-import dash_auth
-
-...
-
-auth = dash_auth.BasicAuth(app, {os.environ.get("VALID_USERNAME"): os.environ.get("VALID_PASSWORD")})
-```
-
-## Virtual environment
-Create a virtual env for the app separate from the general project environment:
-```
-python3.10 -m venv env
-source env/bin/activate
-pip install -r dsp_interview_transcripts/app/requirements.txt
-```
-The reason for this is that the overall project has some hefty dependencies e.g. sentence transformers, pytorch and so on. We do not need these for the app so avoiding packages that download language models means we can get away with using a smaller EC2 instance for the app.
-
-Long term, it may be better practice to have the app in its own repo so that front-end development is entirely separate from the data processing/ML aspects of the project.
+🌱 This directory contains the newer version of the app. This version allows the user to upload their own data and run an analysis.
 
 # How to run the app locally
 
-* Activate the virtual env (see above)
-
-* `cd dsp_interview_transcripts/app/`
-
-* `python app_pages.py`
+```
+python dsp_interview_transcripts/app/app_tabs.py
+```
 
 You will see from the message in your terminal that the app is running on a url, e.g. `http://127.0.0.1:8050`. Open this in your browser to see the app.
 
-# Deployment
+# Structure
 
-The EC2 instance we use is called `qualfml` and it is a `t3.small` instance.
+`app_tabs.py`: This controls the overall layout of the app. There are also variables stored silently in the layout (`dcc.Store(...)`) that are used to store data between callbacks and between tabs.
 
-## Updating app data
+Each page of the app has one script controlling its layout in `layout/`, and a separate one containing its backend logic in `callbacks/`.
 
-Follow the instructions above to download the necessary data files.
+Styling is controlled by two files:
 
-Once you've downloaded these files from s3 to your own computer, follow the instructions from [slide 13 of Jack's have-a-go](https://docs.google.com/presentation/d/1Pu315-w6TPWhJMUojv2oOMWyEBbVy99pq1mVEXh3FCI/edit#slide=id.g31031850c6d_0_30) to copy those files to the instance.
+* `style.py`
+
+* `assets/style.css` - this contains some custom css classes for the app.
+
+# Secrets needed
 
 ```
-scp -i <location-of-pem.pem> <data-to-copy.csv> ubuntu@<public-ipv4-dns>:/home/ubuntu/dsp_interview_transcripts/app/data/
+LLM_SERVICE=...
+AZURE_OPENAI_ENDPOINT=...
+AZURE_OPENAI_DEPLOYMENT_NAME=...
+AZURE_OPENAI_API_VERSION=...
 ```
+
+# Deploying on EC2
+
+## Set up
+
+* Create a new EC2 instance. We are currently using `t3.medium`.
+
+* SSH into the instance and install the following (from [Jack's EC2 instructions](https://docs.google.com/presentation/d/1Pu315-w6TPWhJMUojv2oOMWyEBbVy99pq1mVEXh3FCI/edit?slide=id.g31031850c6d_0_25#slide=id.g31031850c6d_0_25)):
+```
+sudo apt update
+sudo apt install software-properties-common
+sudo add-apt-repository ppa:deadsnakes/ppa
+sudo apt-get install unzip
+sudo apt install python3.11 python3.11-venv python3.11-dev
+sudo apt install build-essential
+sudo apt-get install manpages-dev
+```
+
+* Install poetry
+
+* Clone this repo
+
+* Install just the app-specific dependencies: `poetry install --only app`
+
+## Run the app
+
+* Run the app with `nohup python dsp_interview_transcripts/app/app_tabs.py > app.log 2>&1 &`
+
+## Access
+Currently this app is available to anyone on the Nesta VPN.
+
+## Storing user data
+
+The app stores user data in `dsp_interview_transcripts/outputs/`. The `uuid` library is used in the app to generate a unique identifier for each user, which is used to create a folder for each user in `dsp_interview_transcripts/outputs/`.
+
+There is a cron job defined in `dsp_interview_transcripts/automation/` that runs every day at 00:00 and deletes all folders in `dsp_interview_transcripts/outputs/`. It is currently live on the EC2 instance and it was set up by:
+
+* Running `crontab -e`
+
+* Adding the following line to the crontab file: `0 0 * * * /home/ubuntu/dsp_interview_transcripts/automation/cleanup_outputs.sh`

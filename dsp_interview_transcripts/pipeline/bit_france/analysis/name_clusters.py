@@ -8,9 +8,9 @@ from pydantic import Field
 
 from dsp_interview_transcripts import PROJECT_DIR
 from dsp_interview_transcripts import logger
-from dsp_interview_transcripts.utils.llama_utils import format_output_df
-from dsp_interview_transcripts.utils.llama_utils import get_chain
-from dsp_interview_transcripts.utils.llama_utils import name_topics
+from dsp_interview_transcripts.utils.llm_utils import format_output_df
+from dsp_interview_transcripts.utils.llm_utils import get_chain
+from dsp_interview_transcripts.utils.llm_utils import name_topics
 
 
 MODEL_NAME = "llama3.2"

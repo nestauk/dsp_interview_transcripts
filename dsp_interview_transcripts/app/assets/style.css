@@ -1,27 +1,157 @@
 @import url("https://fonts.cdnfonts.com/css/century-gothic");
-html,
-body,
-[class*="css"] {
-  font-family: "Century Gothic";
-}
-:root {
-  --md-primary-fg-color: #18a48c;
-  --md-accent-fg-color: #eb003b;
+
+html, body, [class*="css"] {
+  font-family: "Century Gothic", sans-serif;
+  background-color: #0F294A;  /* Nesta dark navy background */
+  color: white;               /* Default text color */
+  margin: 0;
+  padding: 0;
 }
 
-/* Styling for the tab headers */
+/* Main container */
+.container, .dash-container {
+  background-color: #0F294A;
+  color: white;
+  padding: 20px;
+  border-radius: 12px;
+}
+
+/* Navbar */
+.navbar, .navbar-brand {
+  background-color: #0F294A !important;
+  color: white !important;
+  font-weight: bold;
+}
+
+/* Tabs */
+.tab {
+  background-color: #0F294A !important;
+  color: white !important;
+  font-weight: 500;
+  border: none !important;
+  padding: 10px 20px;
+ }
+
+.tab:hover {
+  background-color: #1F3A60 !important;
+  color: white !important;
+  border: none !important;
+}
+
 .tab--selected {
-    background-color: #0000FF !important;
-    color: white !important;
-  }
+  border-top: none !important;
+  box-shadow: none !important;
+  background-color: #FDB633 !important;
+  color: #0F294A !important;
+  font-weight: bold;
+  border: none !important;
+}
 
-  .tab {
-    background-color: lightgray;  /* Tab background when not selected */
-    color: black;                 /* Tab text color when not selected */
-  }
+.tab-content {
+  background-color: white;
+  color: #0F294A;
+  /* padding: 24px; */
+  margin-top: 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
 
-  /* Hover effect */
-  .tab:hover {
-    background-color: #0000FF;
-    color: white;
-  }
+.nesta-tab-container {
+  background-color: white;
+  padding: 20px;
+  margin-top: 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  color: #0F294A;
+}
+
+/* Headings */
+h1, h2, h3, h4 {
+  color: #0F294A;
+  font-weight: bold;
+}
+
+/* Upload box */
+.dash-uploader {
+  background-color: #1F3A60 !important;
+  border: 2px dashed #FDB633 !important;
+  color: white !important;
+  padding: 20px;
+  border-radius: 10px;
+  margin-top: 20px;
+}
+
+/* General button styling */
+.nesta-button {
+  background-color: #18A48C !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-weight: bold;
+}
+
+.nesta-button:hover {
+  background-color: #148C78 !important;
+  cursor: pointer;
+} */
+
+/* Quote blocks */
+.quote-block {
+  background-color: #1F3A60 !important;
+  color: white !important;
+  border-radius: 6px !important;
+  padding: 12px 16px !important;
+  margin-bottom: 10px !important;
+  font-size: 15px !important;
+  font-family: "Century Gothic", sans-serif !important;
+  font-style: italic !important;
+  quotes: "“" "”" "‘" "’";
+  display: block !important;           /* <- FORCE block layout */
+  width: 100% !important;              /* <- Fill container */
+  box-sizing: border-box !important;  /* <- Respect padding */
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+  cursor: pointer;
+  transition: background-color 0.2s ease-in-out;
+}
+
+.quote-block::before {
+  content: open-quote;
+}
+.quote-block::after {
+  content: close-quote;
+}
+
+.quote-block:hover {
+  background-color: #FDB633 !important;  /* Nesta yellow */
+  color: #0F294A !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  font-style: bold;
+}
+
+/* Modal overlay darken */
+.modal-backdrop.show {
+  opacity: 0.8 !important;
+}
+
+.modal-content {
+  background-color: white !important;
+  color: #0F294A !important;
+}
+
+.modal-body {
+  font-family: "Century Gothic", sans-serif;
+  font-size: 15px;
+}
+
+
+/* Scrollbars (optional) */
+::-webkit-scrollbar {
+  width: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: #18A48C;
+  border-radius: 10px;
+}
