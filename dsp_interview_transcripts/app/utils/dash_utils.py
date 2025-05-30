@@ -1,4 +1,5 @@
 import base64
+import json
 import os
 
 from io import StringIO
@@ -69,3 +70,26 @@ def get_cleaned_data(session_id: str) -> pd.DataFrame:
         raise PreventUpdate
 
     return pd.read_csv(cleaned_path)
+
+
+def get_data_for_topic_modelling(session_id: str) -> pd.DataFrame:
+
+    output_dir = get_or_create_output_dir(session_id, test_mode=False)
+
+    combined_path = os.path.join(output_dir, "combined_data.csv")
+    jsonl_path = os.path.join(output_dir, "raw_text_files.jsonl")
+
+    if os.path.exists(combined_path):
+        return pd.read_csv(combined_path)
+
+    elif os.path.exists(jsonl_path):
+        records = []
+        with open(jsonl_path, "r", encoding="utf-8") as f:
+            for line in f:
+                record = json.loads(line)
+                if isinstance(record, dict) and "filename" in record and "text" in record:
+                    records.append(record)
+        return pd.DataFrame(records)
+
+    else:
+        raise PreventUpdate

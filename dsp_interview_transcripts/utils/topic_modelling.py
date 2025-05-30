@@ -94,7 +94,7 @@ def init_topic_model(
     vectorizer_model = TfidfVectorizer(
         stop_words=stop_words,
         min_df=1,
-        max_df=0.85,
+        max_df=0.7,
         ngram_range=(1, 3),
     )
 

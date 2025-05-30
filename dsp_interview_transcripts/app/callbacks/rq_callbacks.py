@@ -54,8 +54,8 @@ def register_rq_callbacks(app):
             role_col=colinfo["role"],
             uuid_col=colinfo["uuid"],
         )
-        per_rq, long_dfs = generate_summaries(rq_dict, output_paths, outdir, test_mode, colinfo["text"])
-        full_df = generate_full_summary_output(rq_dict, long_dfs, per_rq, colinfo["text"])
+        per_rq, long_dfs = generate_summaries(rq_dict, output_paths, outdir, test_mode)
+        full_df = generate_full_summary_output(rq_dict, long_dfs, per_rq)
         full_df.to_csv(os.path.join(outdir, "full_summary.csv"), index=False)
         create_output_excel(full_df, outdir)
         btn = dbc.Button("Download Results", id="trigger-download", className="nesta-button")

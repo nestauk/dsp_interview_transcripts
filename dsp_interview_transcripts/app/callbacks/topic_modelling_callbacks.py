@@ -18,8 +18,8 @@ from utils.topic_modelling import MODEL
 from utils.topic_modelling import get_topics_and_summaries
 
 
-# TODO: better way of identifying user messages
-INTERVIEWER_TERMS = ["BOT", "interviewer"]
+# # TODO: better way of identifying user messages
+# INTERVIEWER_TERMS = ["BOT", "interviewer"]
 
 
 def register_topic_callbacks(app):
@@ -42,9 +42,11 @@ def register_topic_callbacks(app):
         status_msg = f"Running topic model with {num_topics} topics..."
         # Load cleaned data
         output_dir = get_or_create_output_dir(session_id)
+
         df = get_cleaned_data(session_id)
+
         # Filter user messages
-        user_msgs = df[~df[colinfo["role"]].isin(INTERVIEWER_TERMS)]
+        user_msgs = df
         # Run topic model
         df_vis, topic_lookup = get_topics_and_summaries(user_msgs, colinfo["text"], num_topics)
         # Save lookup
@@ -111,6 +113,9 @@ def register_topic_callbacks(app):
             column_info["text"],
             column_info["uuid"],
         )
+
+        if conv_id is None:
+            conv_id = "source_file"
 
         df = pd.DataFrame(data)
 
